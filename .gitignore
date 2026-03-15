@@ -1,0 +1,26 @@
+# ML models
+*.pt
+
+# datasets
+plantvillage/
+plantvillage_subset/
+
+# dependencies
+requirements.txt
+
+# YOLO output
+runs/
+
+# python cache
+__pycache__/
+*.pyc
+
+# virtual environments
+venv/
+.env
+backend/.env
+
+# images used for testing
+*.jpg
+*.png
+*.jpeg

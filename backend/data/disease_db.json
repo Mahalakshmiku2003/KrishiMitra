@@ -1,0 +1,749 @@
+{
+  "Tomato leaf": {
+    "display_name": "Healthy Tomato",
+    "crop": "Tomato",
+    "status": "healthy",
+    "pathogen": "None",
+    "symptoms": "Leaf looks healthy with no visible disease symptoms.",
+    "severity_thresholds": { "mild": 0.20, "moderate": 0.60 },
+    "remedies": {
+      "organic": ["Continue regular monitoring", "Maintain proper spacing for air circulation"],
+      "chemical": ["No treatment needed"],
+      "prevention": ["Water at soil level, not on leaves", "Remove any yellowing leaves promptly"]
+    },
+    "urgency": "No action required. Continue regular monitoring."
+  },
+  "Tomato Early blight leaf": {
+    "display_name": "Early Blight",
+    "crop": "Tomato",
+    "pathogen": "Alternaria solani (fungus)",
+    "symptoms": "Dark brown concentric rings (target-board pattern) on older/lower leaves. Yellow halo around spots. Premature leaf drop.",
+    "spread": "Spreads via wind, rain splash, and infected soil debris. Favours warm humid weather (24-29°C).",
+    "severity_thresholds": { "mild": 0.20, "moderate": 0.60 },
+    "remedies": {
+      "organic": [
+        "Remove and destroy infected leaves immediately",
+        "Neem oil spray — 5ml per litre of water, spray every 7 days",
+        "Baking soda spray — 1 tsp per litre water + few drops dish soap",
+        "Mulch soil surface to reduce rain splash-back"
+      ],
+      "chemical": [
+        "Mancozeb 75WP — 2g per litre of water",
+        "Chlorothalonil 75WP — 2g per litre of water",
+        "Azoxystrobin — follow label dosage",
+        "Spray every 10-14 days, alternating chemicals to avoid resistance"
+      ],
+      "prevention": [
+        "Avoid overhead irrigation — water at soil level",
+        "Crop rotation — do not plant tomato in same soil for 2 years",
+        "Use certified disease-free seeds",
+        "Maintain 45-60cm spacing between plants for airflow"
+      ]
+    },
+    "urgency": "Treat within 48 hours to prevent spread to upper canopy."
+  },
+  "Tomato late blight leaf": {
+    "display_name": "Late Blight",
+    "crop": "Tomato",
+    "pathogen": "Phytophthora infestans (water mould)",
+    "symptoms": "Large irregular water-soaked dark patches on leaves and stems. White fuzzy mould on underside of leaves in humid conditions. Rapid browning and collapse.",
+    "spread": "Extremely fast spreading. Spreads via wind-borne spores. Favours cool wet weather (10-20°C with high humidity).",
+    "severity_thresholds": { "mild": 0.15, "moderate": 0.40 },
+    "remedies": {
+      "organic": [
+        "Remove ALL infected plant material immediately — bag and discard, do not compost",
+        "Copper-based fungicide (Bordeaux mixture) — 4g per litre",
+        "Improve air circulation by pruning lower leaves"
+      ],
+      "chemical": [
+        "Metalaxyl + Mancozeb — 2.5g per litre (systemic, works after infection)",
+        "Cymoxanil + Mancozeb — 2g per litre",
+        "Dimethomorph — follow label dosage",
+        "Spray every 5-7 days during outbreak conditions"
+      ],
+      "prevention": [
+        "Plant resistant varieties (e.g. Mountain Magic, Defiant)",
+        "Never plant tomatoes near potatoes",
+        "Avoid evening watering — leaves must dry before nightfall",
+        "Scout field every 2-3 days during cool wet spells"
+      ]
+    },
+    "urgency": "URGENT — Late blight can destroy an entire crop in 7-10 days. Start treatment TODAY."
+  },
+  "Tomato leaf bacterial spot": {
+    "display_name": "Bacterial Spot",
+    "crop": "Tomato",
+    "pathogen": "Xanthomonas vesicatoria (bacterium)",
+    "symptoms": "Small water-soaked spots on leaves that turn brown with yellow halo. Spots may have greasy appearance. Affects leaves, stems and fruit.",
+    "spread": "Spreads through rain splash, wind, contaminated tools and hands. Entry through wounds and stomata.",
+    "severity_thresholds": { "mild": 0.20, "moderate": 0.55 },
+    "remedies": {
+      "organic": [
+        "Remove and destroy infected plant debris",
+        "Copper-based spray (Bordeaux mixture) — 4g per litre every 7 days",
+        "Avoid working with plants when wet"
+      ],
+      "chemical": [
+        "Copper hydroxide — 3g per litre",
+        "Streptomycin sulphate — follow label (use sparingly to avoid resistance)",
+        "Mancozeb + Copper combination products"
+      ],
+      "prevention": [
+        "Use pathogen-free certified seeds",
+        "Sanitise tools with 10% bleach solution between plants",
+        "Avoid overhead irrigation",
+        "3-year crop rotation with non-solanaceous crops"
+      ]
+    },
+    "urgency": "Treat within 3 days. Bacterial diseases spread rapidly in wet conditions."
+  },
+  "Tomato leaf mosaic virus": {
+    "display_name": "Tomato Mosaic Virus",
+    "crop": "Tomato",
+    "pathogen": "Tomato Mosaic Virus / Tobacco Mosaic Virus (TMV/ToMV)",
+    "symptoms": "Mottled light and dark green mosaic pattern on leaves. Leaves may be distorted, curled or reduced in size. Stunted plant growth.",
+    "spread": "Spreads through contact — contaminated hands, tools, clothing. Also seed-transmitted.",
+    "severity_thresholds": { "mild": 0.20, "moderate": 0.50 },
+    "remedies": {
+      "organic": [
+        "No cure — infected plants must be removed and destroyed",
+        "Wash hands thoroughly with soap before handling plants",
+        "Milk spray (10% dilution) — reduces virus transmission on tools"
+      ],
+      "chemical": [
+        "No effective chemical treatment for viral diseases",
+        "Imidacloprid can control aphid vectors that spread virus"
+      ],
+      "prevention": [
+        "Use TMV-resistant varieties",
+        "Do not smoke near plants — tobacco can carry TMV",
+        "Sanitise all tools before use",
+        "Control aphids and whiteflies — they spread viruses"
+      ]
+    },
+    "urgency": "Remove infected plants immediately. No treatment — focus on preventing spread."
+  },
+  "Tomato leaf yellow virus": {
+    "display_name": "Tomato Yellow Leaf Curl Virus",
+    "crop": "Tomato",
+    "pathogen": "Tomato Yellow Leaf Curl Virus — TYLCV (transmitted by whiteflies)",
+    "symptoms": "Upward curling and yellowing of leaf margins. Leaves become small and cupped. Severe stunting of entire plant. Flowers may drop without setting fruit.",
+    "spread": "Transmitted exclusively by silverleaf whitefly (Bemisia tabaci). Cannot spread by contact.",
+    "severity_thresholds": { "mild": 0.20, "moderate": 0.50 },
+    "remedies": {
+      "organic": [
+        "Remove and destroy severely infected plants",
+        "Yellow sticky traps to monitor and reduce whitefly population",
+        "Neem oil spray — 5ml per litre every 5-7 days to repel whiteflies",
+        "Reflective silver mulch on soil to confuse whiteflies"
+      ],
+      "chemical": [
+        "Imidacloprid 17.8SL — 0.5ml per litre (systemic whitefly control)",
+        "Thiamethoxam 25WG — 0.3g per litre",
+        "Spiromesifen — for whitefly nymphs on leaf underside",
+        "Target whiteflies — treating the virus directly is not possible"
+      ],
+      "prevention": [
+        "Plant TYLCV-resistant varieties (e.g. TY-Zippel, Shanty)",
+        "Use fine mesh insect nets in nursery stage",
+        "Scout regularly for whiteflies on leaf undersides",
+        "Rogue out infected plants early before whitefly population builds"
+      ]
+    },
+    "urgency": "Control whiteflies immediately. Once plant is severely infected, remove it."
+  },
+  "Tomato mold leaf": {
+    "display_name": "Tomato Leaf Mold",
+    "crop": "Tomato",
+    "pathogen": "Passalora fulva (fungus)",
+    "symptoms": "Pale green or yellow patches on upper leaf surface. Olive-green to grey-brown velvety mould on lower leaf surface. Older leaves affected first.",
+    "spread": "Spreads via airborne spores. Thrives in high humidity (>85%) and temperatures 20-25°C. Common in greenhouse/polytunnel crops.",
+    "severity_thresholds": { "mild": 0.20, "moderate": 0.55 },
+    "remedies": {
+      "organic": [
+        "Reduce humidity by improving ventilation",
+        "Remove heavily infected leaves",
+        "Copper-based fungicide — 4g per litre every 10 days"
+      ],
+      "chemical": [
+        "Mancozeb 75WP — 2g per litre",
+        "Chlorothalonil — 2g per litre",
+        "Difenoconazole — follow label dosage"
+      ],
+      "prevention": [
+        "Maintain humidity below 85% — ventilate greenhouses",
+        "Water early morning so plants dry during the day",
+        "Plant resistant varieties",
+        "Remove crop debris after harvest"
+      ]
+    },
+    "urgency": "Treat within 5 days. Control humidity first — fungicide alone is insufficient."
+  },
+  "Tomato septoria leaf spot": {
+    "display_name": "Septoria Leaf Spot",
+    "crop": "Tomato",
+    "pathogen": "Septoria lycopersici (fungus)",
+    "symptoms": "Numerous small circular spots with dark brown border and lighter grey-white centre on lower leaves. Tiny black dots (pycnidia) visible in spot centres. Rapid defoliation.",
+    "spread": "Spreads via rain splash and wind. Favours warm wet weather. Overwinters in infected plant debris.",
+    "severity_thresholds": { "mild": 0.20, "moderate": 0.55 },
+    "remedies": {
+      "organic": [
+        "Remove infected lower leaves immediately",
+        "Copper fungicide (Bordeaux mixture) — 4g per litre every 7-10 days",
+        "Avoid wetting foliage when watering"
+      ],
+      "chemical": [
+        "Chlorothalonil 75WP — 2g per litre",
+        "Mancozeb 75WP — 2g per litre",
+        "Azoxystrobin — follow label"
+      ],
+      "prevention": [
+        "Crop rotation — at least 2 years before replanting tomato",
+        "Stake plants and prune for good air circulation",
+        "Remove all plant debris at season end",
+        "Mulch around base to prevent soil splash"
+      ]
+    },
+    "urgency": "Treat promptly. Septoria can cause complete defoliation if unchecked."
+  },
+  "Tomato two spotted spider mites leaf": {
+    "display_name": "Two-Spotted Spider Mite",
+    "crop": "Tomato",
+    "pathogen": "Tetranychus urticae (arachnid pest)",
+    "symptoms": "Tiny yellow or bronze stippling on upper leaf surface. Fine webbing on leaf undersides in severe infestations. Leaves turn bronze, dry out and drop.",
+    "spread": "Spreads rapidly in hot dry conditions. Blown by wind. Spreads on clothing and tools.",
+    "severity_thresholds": { "mild": 0.15, "moderate": 0.45 },
+    "remedies": {
+      "organic": [
+        "Strong water jet on leaf undersides to dislodge mites",
+        "Neem oil spray — 5ml per litre every 5 days",
+        "Insecticidal soap spray — 5ml per litre",
+        "Release predatory mites (Phytoseiulus persimilis) in greenhouse settings"
+      ],
+      "chemical": [
+        "Abamectin 1.8EC — 0.5ml per litre (highly effective)",
+        "Spiromesifen — specifically for mites, low resistance risk",
+        "Bifenazate — follow label dosage",
+        "Rotate between chemical groups to prevent resistance"
+      ],
+      "prevention": [
+        "Maintain adequate soil moisture — mites thrive in dry stress",
+        "Avoid excessive nitrogen fertilisation",
+        "Remove weeds around crop that harbour mites",
+        "Scout leaf undersides with magnifying glass weekly"
+      ]
+    },
+    "urgency": "Spider mites multiply extremely fast in heat. Begin treatment within 24 hours."
+  },
+  "Potato leaf": {
+    "display_name": "Healthy Potato",
+    "crop": "Potato",
+    "status": "healthy",
+    "pathogen": "None",
+    "symptoms": "Leaf looks healthy with no visible disease symptoms.",
+    "severity_thresholds": { "mild": 0.20, "moderate": 0.60 },
+    "remedies": {
+      "organic": ["Continue regular monitoring", "Scout for early signs of blight weekly"],
+      "chemical": ["No treatment needed"],
+      "prevention": ["Hill soil around stems", "Ensure good drainage to prevent waterlogging"]
+    },
+    "urgency": "No action required. Continue regular monitoring."
+  },
+  "Potato leaf early blight": {
+    "display_name": "Early Blight",
+    "crop": "Potato",
+    "pathogen": "Alternaria solani (fungus)",
+    "symptoms": "Dark brown concentric ring spots (target-board pattern) on lower/older leaves first. Yellow chlorotic halo around lesions. Premature defoliation reduces tuber yield.",
+    "spread": "Spreads via airborne spores and rain splash. Favours warm temperatures (24-29°C) with alternating wet and dry periods.",
+    "severity_thresholds": { "mild": 0.20, "moderate": 0.55 },
+    "remedies": {
+      "organic": [
+        "Remove and destroy infected leaves",
+        "Neem oil — 5ml per litre every 7 days",
+        "Copper-based fungicide — 4g per litre"
+      ],
+      "chemical": [
+        "Mancozeb 75WP — 2g per litre",
+        "Azoxystrobin + Difenoconazole combination",
+        "Chlorothalonil — 2g per litre",
+        "Begin spray programme at first sign of disease"
+      ],
+      "prevention": [
+        "3-year crop rotation — avoid potato and tomato in same ground",
+        "Use certified seed tubers",
+        "Hill soil well to protect tubers",
+        "Maintain balanced nutrition — avoid excess nitrogen"
+      ]
+    },
+    "urgency": "Treat within 48 hours. Early blight reduces tuber size and yield significantly."
+  },
+  "Potato leaf late blight": {
+    "display_name": "Late Blight",
+    "crop": "Potato",
+    "pathogen": "Phytophthora infestans (water mould)",
+    "symptoms": "Large water-soaked dark lesions on leaves and stems. White cottony mould on leaf undersides in humid conditions. Infected stems turn black. Tubers develop reddish-brown rot.",
+    "spread": "Devastating — can destroy entire fields in days. Wind-borne spores spread kilometres. Favours cool wet weather (10-20°C).",
+    "severity_thresholds": { "mild": 0.15, "moderate": 0.35 },
+    "remedies": {
+      "organic": [
+        "Remove ALL infected haulm immediately — bury or burn",
+        "Bordeaux mixture — 4g per litre every 5-7 days as preventive",
+        "Do not leave infected tubers in field"
+      ],
+      "chemical": [
+        "Metalaxyl + Mancozeb — 2.5g per litre (systemic, use after infection)",
+        "Cymoxanil + Mancozeb — 2g per litre",
+        "Fluopicolide — follow label (excellent protectant)",
+        "Spray every 5-7 days in high-risk weather"
+      ],
+      "prevention": [
+        "Use blight-resistant varieties (e.g. Sarpo Mira, Cara)",
+        "Never plant near tomatoes",
+        "Destroy all volunteer potato plants",
+        "Monitor blight forecasting alerts (BlightWatch, CIPRA)"
+      ]
+    },
+    "urgency": "CRITICAL — This is the disease that caused the Irish Famine. Act TODAY. Notify nearby farmers."
+  },
+  "Corn leaf blight": {
+    "display_name": "Northern Leaf Blight",
+    "crop": "Corn (Maize)",
+    "pathogen": "Exserohilum turcicum (fungus)",
+    "symptoms": "Long elliptical tan/grey-green lesions (5-15cm) on leaves. Lesions have distinct cigar-shaped appearance with wavy grey-green margins.",
+    "spread": "Wind-borne spores. Favours moderate temperatures (18-27°C) with high humidity and extended leaf wetness.",
+    "severity_thresholds": { "mild": 0.20, "moderate": 0.55 },
+    "remedies": {
+      "organic": [
+        "Remove heavily infected leaves in early stages",
+        "Improve air circulation by reducing plant density"
+      ],
+      "chemical": [
+        "Propiconazole — 1ml per litre (most effective)",
+        "Azoxystrobin — follow label",
+        "Tebuconazole + Trifloxystrobin combination",
+        "Spray at first sign, focus on upper canopy"
+      ],
+      "prevention": [
+        "Plant resistant hybrid varieties",
+        "Crop rotation — at least 1 year break",
+        "Reduce tillage to bury infected crop residue",
+        "Scout from V6 stage onwards"
+      ]
+    },
+    "urgency": "Treat before disease reaches ear leaf or above — that is the critical threshold."
+  },
+  "Corn leaf gray spot": {
+    "display_name": "Gray Leaf Spot",
+    "crop": "Corn (Maize)",
+    "pathogen": "Cercospora zeae-maydis (fungus)",
+    "symptoms": "Rectangular tan to grey lesions bounded by leaf veins. Lesions run parallel to leaf veins, giving a blocky appearance. Premature leaf death in severe cases.",
+    "spread": "Airborne spores from infected crop residue. Favours warm humid conditions with heavy dew.",
+    "severity_thresholds": { "mild": 0.20, "moderate": 0.55 },
+    "remedies": {
+      "organic": ["Improve field drainage and air circulation", "Remove infected lower leaves early"],
+      "chemical": [
+        "Azoxystrobin + Propiconazole — follow label",
+        "Pyraclostrobin — follow label",
+        "Spray from VT (tasselling) to R2 (blister) stage for best ROI"
+      ],
+      "prevention": [
+        "Plant tolerant/resistant hybrids",
+        "Rotate with non-host crops (soybean, wheat)",
+        "Reduce continuous maize planting",
+        "Till to bury residue in high-pressure fields"
+      ]
+    },
+    "urgency": "Spray before disease reaches the ear leaf. Economic threshold is 5% severity on ear leaf."
+  },
+  "Corn rust leaf": {
+    "display_name": "Common Rust",
+    "crop": "Corn (Maize)",
+    "pathogen": "Puccinia sorghi (fungus)",
+    "symptoms": "Small oval to elongated brick-red/brown pustules (uredinia) scattered on both leaf surfaces. Pustules rupture and release dusty reddish-brown spores.",
+    "spread": "Wind-borne spores from alternate hosts (Oxalis spp.). Favours cool to moderate temperatures (16-23°C) with high humidity.",
+    "severity_thresholds": { "mild": 0.20, "moderate": 0.55 },
+    "remedies": {
+      "organic": ["Rust-resistant varieties are the primary management tool", "Remove heavily infected leaves if disease is early-stage"],
+      "chemical": [
+        "Propiconazole — 1ml per litre",
+        "Tebuconazole — follow label",
+        "Azoxystrobin — follow label",
+        "Spray at first sign before pustules rupture"
+      ],
+      "prevention": [
+        "Plant resistant hybrid varieties (most modern hybrids have partial resistance)",
+        "Scout weekly from V8 stage",
+        "Avoid late planting into cool humid conditions"
+      ]
+    },
+    "urgency": "Treat if more than 50% of plants show pustules before silking. Less critical after grain fill."
+  },
+  "Bell_pepper leaf": {
+    "display_name": "Healthy Bell Pepper",
+    "crop": "Bell Pepper",
+    "status": "healthy",
+    "pathogen": "None",
+    "symptoms": "Leaf looks healthy with no visible disease symptoms.",
+    "severity_thresholds": { "mild": 0.20, "moderate": 0.60 },
+    "remedies": {
+      "organic": ["Continue regular monitoring"],
+      "chemical": ["No treatment needed"],
+      "prevention": ["Maintain consistent watering", "Scout weekly for pests and disease"]
+    },
+    "urgency": "No action required. Continue regular monitoring."
+  },
+  "Bell_pepper leaf spot": {
+    "display_name": "Bacterial Leaf Spot",
+    "crop": "Bell Pepper",
+    "pathogen": "Xanthomonas campestris pv. vesicatoria (bacterium)",
+    "symptoms": "Small water-soaked spots that turn dark brown with yellow halo on leaves. Fruit develops raised scabby spots. Severe defoliation in wet conditions.",
+    "spread": "Rain splash, wind, contaminated tools and seed. Entry through stomata and wounds.",
+    "severity_thresholds": { "mild": 0.20, "moderate": 0.55 },
+    "remedies": {
+      "organic": [
+        "Remove and destroy infected plant material",
+        "Copper-based spray — 4g per litre every 7 days",
+        "Avoid overhead irrigation"
+      ],
+      "chemical": [
+        "Copper hydroxide — 3g per litre",
+        "Copper oxychloride — 3g per litre",
+        "Kasugamycin — follow label"
+      ],
+      "prevention": [
+        "Use certified disease-free seed",
+        "Sanitise transplants before field planting",
+        "Avoid working in field when plants are wet",
+        "2-year rotation with non-solanaceous crops"
+      ]
+    },
+    "urgency": "Treat within 3 days. Copper sprays work best as preventive — start before heavy infection."
+  },
+  "Blueberry leaf": {
+    "display_name": "Healthy Blueberry",
+    "crop": "Blueberry",
+    "status": "healthy",
+    "pathogen": "None",
+    "symptoms": "Leaf looks healthy with no visible disease symptoms.",
+    "severity_thresholds": { "mild": 0.20, "moderate": 0.60 },
+    "remedies": {
+      "organic": ["Continue regular monitoring", "Maintain soil pH 4.5-5.5 for optimal health"],
+      "chemical": ["No treatment needed"],
+      "prevention": ["Prune for open canopy and air circulation"]
+    },
+    "urgency": "No action required. Continue regular monitoring."
+  },
+  "Cherry leaf": {
+    "display_name": "Healthy Cherry",
+    "crop": "Cherry",
+    "status": "healthy",
+    "pathogen": "None",
+    "symptoms": "Leaf looks healthy with no visible disease symptoms.",
+    "severity_thresholds": { "mild": 0.20, "moderate": 0.60 },
+    "remedies": {
+      "organic": ["Continue regular monitoring"],
+      "chemical": ["No treatment needed"],
+      "prevention": ["Prune to maintain open canopy"]
+    },
+    "urgency": "No action required. Continue regular monitoring."
+  },
+  "Cherry Powdery Mildew leaf": {
+    "display_name": "Powdery Mildew",
+    "crop": "Cherry",
+    "pathogen": "Podosphaera clandestina (fungus)",
+    "symptoms": "White powdery coating on young leaves, shoots and fruit. Infected leaves curl upward. New shoots may be stunted and distorted.",
+    "spread": "Wind-borne spores. Unique among fungi — thrives in warm dry weather with cool nights. Does NOT require leaf wetness to infect.",
+    "severity_thresholds": { "mild": 0.25, "moderate": 0.60 },
+    "remedies": {
+      "organic": [
+        "Neem oil — 5ml per litre every 7 days",
+        "Potassium bicarbonate — 5g per litre (highly effective)",
+        "Milk spray — 30% milk dilution in water every 7 days",
+        "Sulfur dust or wettable sulfur — apply in cool conditions"
+      ],
+      "chemical": [
+        "Myclobutanil — follow label (very effective systemic)",
+        "Trifloxystrobin — follow label",
+        "Sulfur-based fungicide — follow label",
+        "Spray every 10-14 days from bud break"
+      ],
+      "prevention": [
+        "Prune to open canopy and improve air circulation",
+        "Avoid excess nitrogen fertilisation — promotes susceptible lush growth",
+        "Plant resistant varieties where available",
+        "Remove infected prunings from orchard"
+      ]
+    },
+    "urgency": "Treat early — powdery mildew on cherry spreads rapidly during dry periods."
+  },
+  "Grape leaf": {
+    "display_name": "Healthy Grape",
+    "crop": "Grape",
+    "status": "healthy",
+    "pathogen": "None",
+    "symptoms": "Leaf looks healthy with no visible disease symptoms.",
+    "severity_thresholds": { "mild": 0.20, "moderate": 0.60 },
+    "remedies": {
+      "organic": ["Continue regular monitoring"],
+      "chemical": ["No treatment needed"],
+      "prevention": ["Maintain vine training for good air circulation"]
+    },
+    "urgency": "No action required. Continue regular monitoring."
+  },
+  "Grape leaf black rot": {
+    "display_name": "Black Rot",
+    "crop": "Grape",
+    "pathogen": "Guignardia bidwellii (fungus)",
+    "symptoms": "Tan-brown circular lesions with dark border on leaves. Tiny black fruiting bodies (pycnidia) visible in lesion centres. Berries shrivel into hard black mummies.",
+    "spread": "Spores released from overwintering mummies and infected canes during wet spring weather. Infection period lasts 2-3 weeks around bloom.",
+    "severity_thresholds": { "mild": 0.20, "moderate": 0.55 },
+    "remedies": {
+      "organic": [
+        "Remove and destroy all mummified berries — this is the most critical step",
+        "Copper-based spray — 4g per litre at bud break and pre-bloom"
+      ],
+      "chemical": [
+        "Myclobutanil — follow label (excellent, apply from green tip to 4 weeks post-bloom)",
+        "Mancozeb — 2g per litre (protectant)",
+        "Ziram — follow label",
+        "Critical spray window: 2 weeks before to 4 weeks after full bloom"
+      ],
+      "prevention": [
+        "Remove ALL mummified berries during winter pruning — they are primary inoculum source",
+        "Prune for open canopy to reduce humidity",
+        "Avoid planting in frost pockets or poorly drained areas"
+      ]
+    },
+    "urgency": "Focus sprays around bloom — this is the highest-risk infection window."
+  },
+  "Grape powdery mildew leaf": {
+    "display_name": "Powdery Mildew",
+    "crop": "Grape",
+    "pathogen": "Erysiphe necator (fungus)",
+    "symptoms": "White to grey powdery coating on leaves, shoots and berries. Infected berries split, exposing seeds. Musty odour from infected tissue.",
+    "spread": "Wind-borne spores. Favours warm dry weather with moderate humidity. Does NOT require free water for infection.",
+    "severity_thresholds": { "mild": 0.20, "moderate": 0.55 },
+    "remedies": {
+      "organic": [
+        "Sulfur dust or wettable sulfur — most effective organic option",
+        "Potassium bicarbonate — 5g per litre",
+        "Neem oil — 5ml per litre"
+      ],
+      "chemical": [
+        "Myclobutanil — follow label",
+        "Tebuconazole — follow label",
+        "Quinoxyfen — follow label (excellent protectant)",
+        "Begin at bud break and spray every 10-14 days through veraison"
+      ],
+      "prevention": [
+        "Shoot and leaf removal around clusters at berry set to improve air circulation",
+        "Avoid excess irrigation and nitrogen",
+        "Monitor degree-day models for infection risk windows"
+      ]
+    },
+    "urgency": "Protect clusters from infection — berry infection before 10mm berry size causes most damage."
+  },
+  "Peach leaf": {
+    "display_name": "Healthy Peach",
+    "crop": "Peach",
+    "status": "healthy",
+    "pathogen": "None",
+    "symptoms": "Leaf looks healthy with no visible disease symptoms.",
+    "severity_thresholds": { "mild": 0.20, "moderate": 0.60 },
+    "remedies": {
+      "organic": ["Continue regular monitoring"],
+      "chemical": ["No treatment needed"],
+      "prevention": ["Maintain open-vase tree shape for air circulation"]
+    },
+    "urgency": "No action required. Continue regular monitoring."
+  },
+  "Peach leaf bacterial spot": {
+    "display_name": "Bacterial Spot",
+    "crop": "Peach",
+    "pathogen": "Xanthomonas arboricola pv. pruni (bacterium)",
+    "symptoms": "Small water-soaked spots on leaves that turn dark purple-brown. Centres of spots may fall out leaving shothole appearance. Fruit shows dark sunken spots.",
+    "spread": "Rain-driven bacteria spread from cankers in wet spring conditions. Enters through stomata and wounds.",
+    "severity_thresholds": { "mild": 0.20, "moderate": 0.55 },
+    "remedies": {
+      "organic": [
+        "Copper-based dormant spray at leaf fall and green tip",
+        "Remove and destroy cankered wood during dormant pruning"
+      ],
+      "chemical": [
+        "Copper hydroxide — 3g per litre at pre-bloom",
+        "Oxytetracycline — follow label for in-season sprays",
+        "Spray during and after rain events"
+      ],
+      "prevention": [
+        "Plant resistant varieties (e.g. Redhaven, Contender)",
+        "Avoid planting in sites prone to late spring frost damage",
+        "Prune to reduce humidity within canopy"
+      ]
+    },
+    "urgency": "Spray after every significant rain event from shuck-split through harvest."
+  },
+  "Raspberry leaf": {
+    "display_name": "Healthy Raspberry",
+    "crop": "Raspberry",
+    "status": "healthy",
+    "pathogen": "None",
+    "symptoms": "Leaf looks healthy with no visible disease symptoms.",
+    "severity_thresholds": { "mild": 0.20, "moderate": 0.60 },
+    "remedies": {
+      "organic": ["Continue regular monitoring"],
+      "chemical": ["No treatment needed"],
+      "prevention": ["Remove old floricanes after harvest to reduce disease pressure"]
+    },
+    "urgency": "No action required. Continue regular monitoring."
+  },
+  "Soyabean leaf": {
+    "display_name": "Healthy Soybean",
+    "crop": "Soybean",
+    "status": "healthy",
+    "pathogen": "None",
+    "symptoms": "Leaf looks healthy with no visible disease symptoms.",
+    "severity_thresholds": { "mild": 0.20, "moderate": 0.60 },
+    "remedies": {
+      "organic": ["Continue regular monitoring"],
+      "chemical": ["No treatment needed"],
+      "prevention": ["Scout regularly for soybean rust, especially from R1 stage"]
+    },
+    "urgency": "No action required. Continue regular monitoring."
+  },
+  "Squash Powdery mildew leaf": {
+    "display_name": "Powdery Mildew",
+    "crop": "Squash",
+    "pathogen": "Podosphaera xanthii / Erysiphe cichoracearum (fungi)",
+    "symptoms": "White powdery circular patches on upper leaf surface. Infected leaves turn yellow and die. Reduces photosynthesis and fruit quality.",
+    "spread": "Wind-borne spores. Thrives in warm dry weather with high humidity. Does not need wet leaves to infect.",
+    "severity_thresholds": { "mild": 0.25, "moderate": 0.60 },
+    "remedies": {
+      "organic": [
+        "Baking soda spray — 1 tsp per litre + few drops dish soap every 5-7 days",
+        "Neem oil — 5ml per litre",
+        "Potassium bicarbonate — 5g per litre",
+        "Milk spray — 30% dilution every 7 days"
+      ],
+      "chemical": [
+        "Myclobutanil — follow label",
+        "Azoxystrobin — follow label",
+        "Sulfur-based fungicide — avoid in temperatures above 32°C"
+      ],
+      "prevention": [
+        "Plant resistant varieties",
+        "Avoid overhead irrigation",
+        "Remove infected leaves promptly",
+        "Good spacing — at least 90cm between plants"
+      ]
+    },
+    "urgency": "Treat when first patches appear — powdery mildew spreads quickly in summer conditions."
+  },
+  "Strawberry leaf": {
+    "display_name": "Healthy Strawberry",
+    "crop": "Strawberry",
+    "status": "healthy",
+    "pathogen": "None",
+    "symptoms": "Leaf looks healthy with no visible disease symptoms.",
+    "severity_thresholds": { "mild": 0.20, "moderate": 0.60 },
+    "remedies": {
+      "organic": ["Continue regular monitoring"],
+      "chemical": ["No treatment needed"],
+      "prevention": ["Remove old/dead leaves to reduce disease inoculum"]
+    },
+    "urgency": "No action required. Continue regular monitoring."
+  },
+  "Strawberry leaf scorch": {
+    "display_name": "Leaf Scorch",
+    "crop": "Strawberry",
+    "pathogen": "Diplocarpon earlianum (fungus)",
+    "symptoms": "Numerous small irregular dark purple spots on leaf surface. Spots do not have distinct pale centres. Leaves take on scorched or burnt appearance.",
+    "spread": "Rain splash dispersal. Overwinters in infected leaves. Favours wet weather.",
+    "severity_thresholds": { "mild": 0.20, "moderate": 0.55 },
+    "remedies": {
+      "organic": [
+        "Remove and destroy infected leaves — especially old overwintered foliage",
+        "Copper-based fungicide — 4g per litre at early season"
+      ],
+      "chemical": [
+        "Myclobutanil — follow label",
+        "Captan — follow label",
+        "Azoxystrobin — follow label",
+        "Begin spray at first leaf spot appearance"
+      ],
+      "prevention": [
+        "Renovate beds after harvest — mow leaves, remove debris",
+        "Avoid overhead irrigation",
+        "Plant resistant varieties",
+        "Rotate planting sites every 3 years"
+      ]
+    },
+    "urgency": "Treat at first sign. Severe infections reduce runner and fruit production."
+  },
+  "Apple leaf": {
+    "display_name": "Healthy Apple",
+    "crop": "Apple",
+    "status": "healthy",
+    "pathogen": "None",
+    "symptoms": "Leaf looks healthy with no visible disease symptoms.",
+    "severity_thresholds": { "mild": 0.20, "moderate": 0.60 },
+    "remedies": {
+      "organic": ["Continue regular monitoring"],
+      "chemical": ["No treatment needed"],
+      "prevention": ["Prune annually for open canopy and air circulation"]
+    },
+    "urgency": "No action required. Continue regular monitoring."
+  },
+  "Apple Scab Leaf": {
+    "display_name": "Apple Scab",
+    "crop": "Apple",
+    "pathogen": "Venturia inaequalis (fungus)",
+    "symptoms": "Olive-green to dark velvety spots on upper leaf surface. Spots turn brown and irregular with age. Infected leaves curl and drop early. Fruit develops dark scabby lesions.",
+    "spread": "Ascospores released from infected fallen leaves in spring during rain. Primary infection period is green tip to petal fall.",
+    "severity_thresholds": { "mild": 0.20, "moderate": 0.55 },
+    "remedies": {
+      "organic": [
+        "Collect and destroy fallen leaves in autumn — removes primary inoculum",
+        "Sulfur-based fungicide — apply every 7-10 days from green tip",
+        "Lime sulfur at dormant stage"
+      ],
+      "chemical": [
+        "Captan — follow label (excellent protectant from green tip)",
+        "Myclobutanil — follow label (systemic, kick-back activity)",
+        "Difenoconazole — follow label",
+        "Critical window: green tip to 2-3 weeks post-petal fall"
+      ],
+      "prevention": [
+        "Plant resistant varieties (e.g. Enterprise, GoldRush, Redfree)",
+        "Collect and destroy ALL fallen leaves each autumn",
+        "Prune for open canopy and air movement",
+        "Use scab forecasting models (Mills Table) to time sprays"
+      ]
+    },
+    "urgency": "Apply protectant fungicide before infection events. Post-infection kickback possible within 72 hours."
+  },
+  "Apple rust leaf": {
+    "display_name": "Cedar Apple Rust",
+    "crop": "Apple",
+    "pathogen": "Gymnosporangium juniperi-virginianae (fungus)",
+    "symptoms": "Bright orange-yellow spots on upper leaf surface with pale halos. Later, tubular structures (aecia) form on leaf undersides. Defoliation in severe cases.",
+    "spread": "Requires two hosts — cedar/juniper trees nearby release orange gelatinous spore masses during spring rain. Spores infect apple leaves.",
+    "severity_thresholds": { "mild": 0.20, "moderate": 0.55 },
+    "remedies": {
+      "organic": [
+        "Remove cedar/juniper trees within 300 metres where possible",
+        "Sulfur-based fungicide at green tip"
+      ],
+      "chemical": [
+        "Myclobutanil — follow label (apply from pink through first cover)",
+        "Propiconazole — follow label",
+        "Mancozeb + Myclobutanil combination"
+      ],
+      "prevention": [
+        "Plant resistant apple varieties (e.g. Enterprise, Liberty, Redfree)",
+        "Remove galls from nearby juniper/cedar trees before spring",
+        "Apply preventive sprays from pink to first cover stage"
+      ]
+    },
+    "urgency": "Spray preventively around pink bud stage — infection happens within 4 hours of spore landing on wet leaves."
+  }
+}
