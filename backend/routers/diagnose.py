@@ -1,4 +1,4 @@
-import uuid, os, logging
+import uuid, os, logging, base64
 from typing import Optional
 from fastapi import APIRouter, UploadFile, File, Form, HTTPException
 from fastapi.responses import JSONResponse
@@ -36,7 +36,7 @@ async def diagnose_image(
         f.write(compressed)
 
     try:
-        result = run_inference(compressed)
+        result, annotated_bytes = run_inference(compressed)
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Inference failed: {e}")
 
@@ -55,4 +55,8 @@ async def diagnose_image(
         except Exception as db_err:
             logging.warning(f"DB save failed (non-fatal): {db_err}")
 
-    return JSONResponse(content=result)  # ← inside the function, after the if block
+    return JSONResponse(content={
+        "status":           result["status"],
+        "detections":       result["detections"],
+        "annotated_image":  base64.b64encode(annotated_bytes).decode("utf-8"),
+    })
