@@ -17,3 +17,6 @@ langchain-openai
 scikit-learn
 apscheduler
 requests
+opencv-python
+pillow
+twilio
