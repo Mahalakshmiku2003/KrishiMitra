@@ -11,8 +11,8 @@ DATABASE_URL = os.getenv("DATABASE_URL")
 # Supabase requires SSL — these args prevent connection errors
 engine = create_engine(
     DATABASE_URL,
-    connect_args={"sslmode": "require"},
     pool_pre_ping=True
+    # remove connect_args={"sslmode": "require"}
 )
 
 SessionLocal = sessionmaker(bind=engine)
