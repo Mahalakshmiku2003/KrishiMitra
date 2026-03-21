@@ -24,3 +24,4 @@ backend/.env
 *.jpg
 *.png
 *.jpeg
+ngrok.exe
