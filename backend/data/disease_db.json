@@ -42,7 +42,7 @@
     },
     "urgency": "Treat within 48 hours to prevent spread to upper canopy."
   },
-  "Tomato late blight leaf": {
+  "Tomato Late blight leaf": {
     "display_name": "Late Blight",
     "crop": "Tomato",
     "pathogen": "Phytophthora infestans (water mould)",
