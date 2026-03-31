@@ -1,7 +1,6 @@
-
 from sqlalchemy import Column, Integer, String, Float, Date, DateTime, UniqueConstraint
 from datetime import datetime
-from database import Base 
+from services.db import Base
 
 class MandiPrice(Base):
     __tablename__ = "mandi_prices"
