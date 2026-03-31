@@ -96,3 +96,70 @@ def add_to_history(phone: str, issue: str, treatment: str):
             {"event": event, "phone": phone}
         )
         db.commit()
+
+
+def save_last_detection(phone: str, bbox_pct: float, severity: str):
+    """
+    Store the latest YOLO detection result so follow-up text messages can use it.
+    Called after photo analysis completes.
+    """
+    with SessionLocal() as db:
+        db.execute(
+            text("""
+                UPDATE farmers
+                SET last_detection = :detection_data
+                WHERE phone = :phone
+            """),
+            {"detection_data": f"{bbox_pct}|{severity}", "phone": phone}
+        )
+        db.commit()
+
+
+def get_last_detection(phone: str) -> dict:
+    """
+    Retrieve last bbox_pct and severity from previous photo analysis.
+    Returns defaults if no detection has been done yet.
+    """
+    try:
+        with SessionLocal() as db:
+            result = db.execute(
+                text("SELECT last_detection FROM farmers WHERE phone = :phone"),
+                {"phone": phone}
+            ).fetchone()
+
+        if result and result[0]:
+            parts    = result[0].split("|")
+            bbox_pct = float(parts[0])
+            severity = parts[1] if len(parts) > 1 else "unknown"
+            return {"bbox_pct": bbox_pct, "severity": severity}
+    except Exception as e:
+        print(f"[FarmerStore] get_last_detection error: {e}")
+
+    return {"bbox_pct": 20.0, "severity": "unknown"}
+
+
+# ── PATCH: replace get_last_detection with this updated version ────────────────
+def get_last_detection(phone: str) -> dict:
+    """
+    Retrieve last detection result. Returns affected_pct and severity.
+    """
+    try:
+        with SessionLocal() as db:
+            result = db.execute(
+                text("SELECT last_detection FROM farmers WHERE phone = :phone"),
+                {"phone": phone}
+            ).fetchone()
+
+        if result and result[0]:
+            parts        = result[0].split("|")
+            affected_pct = float(parts[0])
+            severity     = parts[1] if len(parts) > 1 else "unknown"
+            return {
+                "affected_pct": affected_pct,
+                "bbox_pct":     affected_pct,
+                "severity":     severity,
+            }
+    except Exception as e:
+        print(f"[FarmerStore] get_last_detection error: {e}")
+
+    return {"affected_pct": 20.0, "bbox_pct": 20.0, "severity": "unknown"}

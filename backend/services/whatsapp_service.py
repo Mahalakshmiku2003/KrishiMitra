@@ -61,7 +61,9 @@ async def handle_incoming_message(form_data: dict) -> str:
     # Build TwiML response
     twiml = MessagingResponse()
     twiml.message(reply)
-    return str(twiml)
+    twiml_str = str(twiml)
+    print(f"[DEBUG] Sending TwiML: {twiml_str}")  # add this
+    return twiml_str
 
 
 async def send_proactive_message(phone: str, message: str):

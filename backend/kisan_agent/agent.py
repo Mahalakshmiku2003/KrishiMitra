@@ -1,18 +1,18 @@
 """
 kisan_agent/agent.py
-Fixed: uses langchain-google-genai with new google-genai backend
+Uses combined analyze_crop_image tool — no more bbox hallucination.
 """
 
 import os
 from dotenv import load_dotenv
 
-from langchain_google_genai import ChatGoogleGenerativeAI
+from langchain_groq import ChatGroq
 from langchain.agents import AgentExecutor, create_tool_calling_agent
 from langchain_core.prompts import ChatPromptTemplate, MessagesPlaceholder
 from langchain_core.messages import HumanMessage, AIMessage
 
 from kisan_agent.tools import ALL_TOOLS
-from kisan_agent.guardrails import check_message, check_image
+
 
 load_dotenv()
 
@@ -24,44 +24,40 @@ Farmer profile:
 - Location: {location}
 - Soil type: {soil_type}
 - Past issues: {history}
-
-IMPORTANT — HOW YOUR YOLO MODEL WORKS:
-The YOLO model detects the leaf region and draws a bounding box.
-It returns yolo_label = 'leaf' always — it does NOT name the disease.
-The bounding box area tells you HOW MUCH of the leaf is affected (severity).
-You still need the farmer to tell you WHICH crop and WHAT symptoms they see.
+- Last photo result: {last_bbox_pct}% affected, severity: {last_severity}
 
 TOOL CHAIN — WHEN FARMER SENDS A PHOTO:
-Step 1: Call detect_disease_regions(image_path)
-        → You get: bbox, bbox_pct, confidence, yolo_label (will be 'leaf')
-Step 2: Call calculate_severity(x1, y1, x2, y2, img_w, img_h, confidence)
-        → You get: Mild / Moderate / Severe + affected %
-Step 3: Do NOT call lookup_disease_info yet.
-        Reply to farmer with severity and ask:
-        "Aapki photo mein [X]% patti affected dikh rahi hai — [severity].
+Step 1: Call analyze_crop_image(image_path) — this does detection AND severity together.
+        Returns: severity level, affected_pct, confidence.
+Step 2: Reply to farmer with the result and ask:
+        "Aapki photo mein [affected_pct]% patti affected dikh rahi hai — [severity].
          Kaun si fasal hai aur kya symptoms dikh rahe hain?"
-Step 4: When farmer replies with crop + symptoms:
-        Call lookup_disease_info(disease_name=their_description, location)
-Step 5: Call predict_disease_progression(disease_name, bbox_pct)
-Step 6: Give complete reply: disease, treatment, progression warning.
-        End with: "3 din baad ek aur photo bhejein — main progress check karunga."
+Do NOT call any other detection tools. analyze_crop_image does everything.
 
-TOOL CHAIN — WHEN FARMER DESCRIBES SYMPTOMS (no photo):
-Step 1: If unclear, ask ONE question: "Kaun si fasal? Kya dikh raha hai?"
-Step 2: Call lookup_disease_info(disease_name=description, location)
-Step 3: Reply with top 2 remedies and prevention tips.
+TOOL CHAIN — WHEN FARMER REPLIES WITH CROP + SYMPTOMS (text, no photo):
+- Do NOT call analyze_crop_image — there is no image
+- Use: affected_pct = {last_bbox_pct}%, severity = {last_severity} from last photo
+- Step 1: Call lookup_disease_info(crop, symptoms, location)
+- Step 2: Call predict_disease_progression(disease_name, bbox_pct={last_bbox_pct})
+- Step 3: Give COMPLETE reply with ALL of:
+    * Disease name and pathogen
+    * Severity: {last_severity}, {last_bbox_pct}% affected
+    * ALL organic remedies — list each one
+    * ALL chemical remedies with exact dosage
+    * Urgency statement exactly as given
+    * 7-day progression warning
+    * End: "3 din baad ek aur photo bhejein — main progress check karunga."
 
-TOOL CHAIN — PRICE / SELLING QUESTIONS:
+TOOL CHAIN — PRICE / SELLING:
 Step 1: Call get_mandi_price(commodity, state)
-Step 2: If farmer asks trend: call predict_price_trend(commodity, market)
-Step 3: If farmer asks where to sell: call find_nearby_mandis(location, commodity)
+Step 2: If trend asked: call predict_price_trend(commodity, market)
+Step 3: If where to sell: call find_nearby_mandis(location, commodity)
 
-LANGUAGE & STYLE RULES:
-- Reply in the SAME language the farmer uses — Hindi, English, or Hinglish
-- Keep replies SHORT — max 6 lines — farmers use small phones
-- Use simple words: "dawai" not "fungicide", "patti" not "leaf lamina"
-- Never guess pesticide dosages — only use what lookup_disease_info returns
-- If unsure, say so honestly
+RULES:
+- Reply in SAME language as farmer — Hindi, English, or Hinglish
+- Keep replies concise but COMPLETE for disease info
+- Never guess dosages — only use what lookup_disease_info returns
+- Use simple words: "dawai" not "fungicide"
 """
 
 
@@ -86,12 +82,11 @@ def _format_history(history: list) -> str:
 
 
 def _build_executor() -> AgentExecutor:
-    llm = ChatGoogleGenerativeAI(
-        model="gemini-2.5-flash",
-        google_api_key=os.getenv("GEMINI_API_KEY"),
+    llm = ChatGroq(
+        model="llama-3.3-70b-versatile",
+        api_key=os.getenv("GROQ_API_KEY"),
         temperature=0.2,
-        max_tokens=500,       # limit response length
-        max_retries=2,
+        max_tokens=1024,
     )
     prompt = ChatPromptTemplate.from_messages([
         ("system", SYSTEM_PROMPT),
@@ -104,7 +99,7 @@ def _build_executor() -> AgentExecutor:
         agent=agent,
         tools=ALL_TOOLS,
         verbose=True,
-        max_iterations=6,
+        max_iterations=5,
         handle_parsing_errors=True,
     )
 
@@ -120,44 +115,50 @@ async def get_agent_response(
     if image_path and image_content_type:
         img_check = check_image(image_content_type)
         if not img_check.allowed:
-            print(f"[Guardrail] {img_check.warning}")
             return img_check.reply
 
     msg_check = check_message(message)
     if not msg_check.allowed:
-        print(f"[Guardrail] {msg_check.warning}")
         return msg_check.reply
 
-    # 2. Load farmer profile
-    from farmer_store import get_farmer, save_message
-    farmer = get_farmer(phone)
+    # 2. Load farmer + last detection
+    from farmer_store import get_farmer, save_message, get_last_detection
+    farmer         = get_farmer(phone)
+    last_detection = get_last_detection(phone)
+    print(f"[Agent] Last detection loaded: {last_detection}")
 
-    # 3. Build agent input
+    # 3. Build input
     if image_path:
         agent_input = (
             f"Farmer sent a crop photo. Image path: {image_path}\n"
-            f"Farmer's message: '{message or 'Please check this photo.'}'\n"
+            f"Farmer message: '{message or 'Check this photo please.'}'\n"
             f"Farmer location: {farmer.get('location', 'India')}\n\n"
-            f"Instructions:\n"
-            f"1. Call detect_disease_regions('{image_path}')\n"
-            f"2. Call calculate_severity using bbox from step 1\n"
-            f"3. Reply with severity and ask: which crop + what symptoms?\n"
-            f"Reply in farmer's language."
+            f"Call analyze_crop_image('{image_path}') — ONE tool only.\n"
+            f"Then reply with severity and ask which crop + symptoms."
         )
     else:
-        agent_input = message
+        agent_input = (
+            f"Farmer sent a TEXT message (no image): '{message}'\n"
+            f"Farmer location: {farmer.get('location', 'India')}\n"
+            f"Last photo: {last_detection['affected_pct']}% affected, "
+            f"severity: {last_detection['severity']}\n\n"
+            f"Do NOT call analyze_crop_image — no image.\n"
+            f"Call lookup_disease_info then predict_disease_progression."
+        )
 
     # 4. Run agent
     try:
         executor = _build_executor()
         result   = executor.invoke({
-            "input":        agent_input,
-            "name":         farmer.get("name", "Kisan bhai"),
-            "crops":        ", ".join(farmer.get("crops", [])) or "not specified",
-            "location":     farmer.get("location", "India"),
-            "soil_type":    farmer.get("soil_type", "unknown"),
-            "history":      _format_history(farmer.get("history", [])),
-            "chat_history": _to_langchain_messages(farmer.get("messages", [])),
+            "input":          agent_input,
+            "name":           farmer.get("name", "Kisan bhai"),
+            "crops":          ", ".join(farmer.get("crops", [])) or "not specified",
+            "location":       farmer.get("location", "India"),
+            "soil_type":      farmer.get("soil_type", "unknown"),
+            "history":        _format_history(farmer.get("history", [])),
+            "chat_history":   _to_langchain_messages(farmer.get("messages", [])),
+            "last_bbox_pct":  last_detection.get("affected_pct", 20.0),
+            "last_severity":  last_detection.get("severity", "unknown"),
         })
         response = result["output"]
 
@@ -168,27 +169,37 @@ async def get_agent_response(
             "Thodi der baad dobara bhejein."
         )
 
-    # 5. Save to DB and schedule follow-up if diagnosis
+    # 5. Save detection result to DB after image processing
+    if image_path:
+        from kisan_agent.tools import read_detection_cache
+        from farmer_store import save_last_detection
+        cached = read_detection_cache()
+        save_last_detection(
+            phone,
+            cached.get("affected_pct", 20.0),
+            cached.get("severity", "unknown"),
+        )
+        print(f"[Agent] Saved to DB: {cached}")
+
+    # 6. Save conversation + follow-up
     save_message(phone, message or "[image]", response)
     _maybe_schedule_followup(phone, farmer, response, image_path)
     return response
 
 
-def _maybe_schedule_followup(phone: str, farmer: dict, response: str, image_path: str):
+def _maybe_schedule_followup(phone, farmer, response, image_path):
     if not image_path:
         return
-    trigger_words = ["spray", "dawai", "treatment", "blight",
-                     "fungus", "ilaj", "severity", "affected"]
-    if not any(w in response.lower() for w in trigger_words):
+    if not any(w in response.lower() for w in
+               ["spray", "dawai", "treatment", "blight", "fungus", "ilaj", "affected"]):
         return
     try:
         from scheduler import schedule_followup
-        first_line = response.split("\n")[0][:60]
         schedule_followup(
             phone=phone,
             farmer_name=farmer.get("name", "Kisan bhai"),
-            disease_name=first_line,
+            disease_name=response.split("\n")[0][:60],
             bbox_pct=0.0,
         )
     except Exception as e:
-        print(f"[Agent] Could not schedule follow-up: {e}")
+        print(f"[Agent] Follow-up error: {e}")
