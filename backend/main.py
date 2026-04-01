@@ -14,6 +14,12 @@ from models import price
 
 Base.metadata.create_all(bind=engine)
 
+from config import UPLOAD_DIR
+import os
+abs_upload_dir = os.path.abspath(UPLOAD_DIR)
+os.makedirs(abs_upload_dir, exist_ok=True)
+print(f"DEBUG: Using upload directory at {abs_upload_dir}")
+
 app = FastAPI(title="KrishiMitra API", version="2.0.0")
 app.add_middleware(
     CORSMiddleware,

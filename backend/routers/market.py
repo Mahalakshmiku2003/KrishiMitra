@@ -26,6 +26,8 @@ async def live_prices(
     state:     str = None,
     db:        Session = Depends(get_db),
 ):
+    commodity = commodity.strip()
+    if state: state = state.strip()
     """
     Returns latest available mandi prices for a commodity from DB.
     Shows most recent data per market even if not updated today.
@@ -106,7 +108,7 @@ async def nearby_mandis(
         results = find_nearby_mandis(
             farmer_lat=coords["lat"],
             farmer_lng=coords["lng"],
-            commodity=request.commodity,
+            commodity=request.commodity.strip(),
             radius_km=request.radius_km,
             top_n=request.top_n,
             db=db,
@@ -169,8 +171,18 @@ async def price_prediction(
     Uses stored historical data if available, seasonal model as fallback.
     """
     try:
-        result = predict_prices(commodity, market, db)
-        return JSONResponse({"status": "success", **result})
+        result = predict_prices(commodity.strip(), market.strip(), db)
+        # Check if the service returned an internal error (e.g., no data)
+        if "error" in result:
+             return JSONResponse({
+                 "status":  "error",
+                 "message": result["error"],
+                 **result
+             })
+             
+        # Rename daily_predictions to forecast for frontend compatibility
+        forecast = result.pop("daily_predictions", [])
+        return JSONResponse({"status": "success", "forecast": forecast, **result})
     except Exception as e:
         return JSONResponse(status_code=500, content={"error": str(e)})
 

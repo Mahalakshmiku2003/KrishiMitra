@@ -41,23 +41,29 @@ def fetch_and_store(commodity: str, db: Session) -> int:
             raw_date     = r.get("arrival_date", "")
             arrival_date = datetime.strptime(raw_date, "%d/%m/%Y").date()
 
-            # Upsert — insert or ignore if already exists
-            stmt = insert(MandiPrice).values(
-                state        = r.get("state", "").strip(),
-                district     = r.get("district", "").strip(),
-                market       = r.get("market", "").strip(),
-                commodity    = r.get("commodity", "").strip(),
-                variety      = r.get("variety", "").strip(),
-                min_price    = float(r.get("min_price", 0) or 0),
-                max_price    = float(r.get("max_price", 0) or 0),
-                modal_price  = float(r.get("modal_price", 0) or 0),
-                arrival_date = arrival_date,
-                fetched_at   = datetime.utcnow(),
-            ).on_conflict_do_nothing(
-                constraint="uq_market_commodity_date"
-            )
-            db.execute(stmt)
-            count += 1
+            # Check if record already exists (SQLite compatible)
+            existing = db.query(MandiPrice).filter(
+                MandiPrice.market == r.get("market", "").strip(),
+                MandiPrice.commodity == r.get("commodity", "").strip(),
+                MandiPrice.variety == r.get("variety", "").strip(),
+                MandiPrice.arrival_date == arrival_date
+            ).first()
+
+            if not existing:
+                new_price = MandiPrice(
+                    state        = r.get("state", "").strip(),
+                    district     = r.get("district", "").strip(),
+                    market       = r.get("market", "").strip(),
+                    commodity    = r.get("commodity", "").strip(),
+                    variety      = r.get("variety", "").strip(),
+                    min_price    = float(r.get("min_price", 0) or 0),
+                    max_price    = float(r.get("max_price", 0) or 0),
+                    modal_price  = float(r.get("modal_price", 0) or 0),
+                    arrival_date = arrival_date,
+                    fetched_at   = datetime.utcnow(),
+                )
+                db.add(new_price)
+                count += 1
 
         except Exception as e:
             print(f"Skipping record: {e}")

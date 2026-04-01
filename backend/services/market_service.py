@@ -121,6 +121,7 @@ def find_nearby_mandis(
     """
     Find best mandis near farmer using state coordinates.
     Queries DB for latest prices, calculates net price after transport.
+    Falls back to closest mandis if none found within radius_km.
     """
     all_prices = get_all_latest_prices(commodity, db)
     results    = []
@@ -139,9 +140,7 @@ def find_nearby_mandis(
 
         distance       = haversine_distance(farmer_lat, farmer_lng,
                                             coords["lat"], coords["lng"])
-        if distance > radius_km:
-            continue
-
+        
         transport_cost = round(distance * TRANSPORT_COST_PER_KM, 2)
         net_price      = round(record["modal_price"] - transport_cost, 2)
 
@@ -152,8 +151,19 @@ def find_nearby_mandis(
             "net_price":      net_price,
         })
 
-    results.sort(key=lambda x: x["net_price"], reverse=True)
-    return results[:top_n]
+    # Filter by radius if any match, otherwise give the closest ones as fallback
+    within_radius = [r for r in results if r["distance_km"] <= radius_km]
+    
+    if within_radius:
+        final_list = within_radius
+    else:
+        # Fallback: No mandis in radius? Return closest available ones.
+        print(f"INFO: No mandis for {commodity} in {radius_km}km. Falling back to closest.")
+        results.sort(key=lambda x: x["distance_km"])
+        final_list = results[:top_n]
+
+    final_list.sort(key=lambda x: x["net_price"], reverse=True)
+    return final_list[:top_n]
 
 
 def get_price_history(commodity: str, market: str, db: Session) -> list:
