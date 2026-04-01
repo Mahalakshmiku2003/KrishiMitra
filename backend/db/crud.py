@@ -1,10 +1,10 @@
 from sqlalchemy.future import select
-from backend.db.models import Farmer, FarmerCrop, FarmerDisease
+from db.models import Farmer, FarmerCrop, FarmerDisease
 
 
 # ─── Create or Update Farmer ─────────────────────────────
 from sqlalchemy.future import select
-from backend.db.models import Farmer
+from db.models import Farmer
 
 
 async def upsert_farmer(db, phone, location=None, language=None):
@@ -31,7 +31,7 @@ async def upsert_farmer(db, phone, location=None, language=None):
 
 
 # ─── Add Crop ────────────────────────────────────────────
-from backend.db.models import FarmerCrop
+from db.models import FarmerCrop
 
 
 async def add_crop(db, phone, crop):
@@ -64,7 +64,7 @@ def normalize(text: str):
 
 
 # ─── Add Disease ─────────────────────────────────────────
-from backend.db.models import FarmerDisease
+from db.models import FarmerDisease
 
 
 async def add_disease(db, phone, disease):

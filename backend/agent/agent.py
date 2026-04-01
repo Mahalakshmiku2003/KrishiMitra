@@ -12,6 +12,8 @@ from agent.tools import (
 )
 
 load_dotenv(os.path.join(os.path.dirname(__file__), ".env"))
+# Fallback to backend/.env when running from project root.
+load_dotenv(os.path.join(os.path.dirname(os.path.dirname(__file__)), ".env"))
 
 client = AsyncGroq(api_key=os.getenv("GROQ_API_KEY"))
 

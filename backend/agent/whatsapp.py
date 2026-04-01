@@ -16,13 +16,15 @@ from agent.agent import process_message, client as groq_client
 from agent.diagnose import diagnose_image
 
 # ✅ NEW: DB imports
-from backend.db.deps import get_db
-from backend.db.crud import upsert_farmer, add_crop, add_disease
+from db.deps import get_db
+from db.crud import upsert_farmer, add_crop, add_disease
 
 router = APIRouter()
 
-CLASSIFIER_PATH = os.path.join(os.path.dirname(__file__), "models", "classifier.onnx")
-DETECTOR_PATH = os.path.join(os.path.dirname(__file__), "models", "detector.onnx")
+_AGENT_DIR = os.path.dirname(os.path.abspath(__file__))
+_MODEL_SUB = "model" if os.path.isdir(os.path.join(_AGENT_DIR, "model")) else "models"
+CLASSIFIER_PATH = os.path.join(_AGENT_DIR, _MODEL_SUB, "classifier.onnx")
+DETECTOR_PATH = os.path.join(_AGENT_DIR, _MODEL_SUB, "detector.onnx")
 
 
 # ─────────────────────────────────────────────────────────
@@ -194,7 +196,3 @@ async def whatsapp_webhook(request: Request):
 @router.get("/whatsapp/test")
 def test_webhook():
     return {"status": "WhatsApp webhook running ✅"}
-
-
-print("SID:", os.getenv("TWILIO_ACCOUNT_SID"))
-print("TOKEN:", os.getenv("TWILIO_AUTH_TOKEN"))

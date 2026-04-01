@@ -20,3 +20,4 @@ requests
 opencv-python
 pillow
 twilio
+asyncpg

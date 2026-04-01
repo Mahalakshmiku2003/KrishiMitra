@@ -1,6 +1,6 @@
 from sqlalchemy import Column, String, Integer, ForeignKey, DateTime
 from sqlalchemy.sql import func
-from backend.db.database import Base
+from db.database import Base
 
 
 class Farmer(Base):

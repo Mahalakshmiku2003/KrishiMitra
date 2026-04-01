@@ -17,9 +17,9 @@ from agent.tools import get_weather, get_mandi_price, get_treatment
 from agent.agent import client as groq_client
 
 # DB
-from backend.db.deps import get_db
-from backend.db.models import Farmer
-from backend.db.crud import get_farmer_profile
+from db.deps import get_db
+from db.models import Farmer
+from db.crud import get_farmer_profile
 
 
 # ─────────────────────────────────────────────────────────

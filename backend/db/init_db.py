@@ -1,8 +1,8 @@
 import asyncio
-from backend.db.database import engine, Base
+from db.database import engine, Base
 
 # 👇 IMPORTANT: import models so SQLAlchemy registers them
-from backend.db import models
+from db import models
 
 
 async def init_db():
