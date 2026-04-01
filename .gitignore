@@ -1,27 +1,64 @@
-# ML models
-*.pt
+# =============================================================================
+# Krishi-Mitra — single repo-wide .gitignore (root)
+# =============================================================================
 
-# datasets
+# --- Environment & secrets ---
+.env
+.env.*
+!.env.example
+backend/.env
+
+# --- Python ---
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+.Python
+*.egg-info/
+dist/
+build/
+
+# --- Virtual environments ---
+venv/
+env/
+.venv/
+
+# --- IDE & OS ---
+.vscode/
+.idea/
+*.swp
+.DS_Store
+Thumbs.db
+
+# --- Logs ---
+*.log
+
+# --- ML weights & exports (large binaries) ---
+weights/
+*.pt
+*.pth
+
+# Ignore ONNX by default; allow committed hackathon models under agent
+*.onnx
+!backend/agent/model/
+!backend/agent/model/*.onnx
+
+# --- Datasets ---
 plantvillage/
 plantvillage_subset/
 
-# dependencies
-requirements.txt
-
-# YOLO output
+# --- YOLO / training outputs ---
 runs/
 
-# python cache
-__pycache__/
-*.pyc
+# --- Uploads & notebook checkpoints ---
+uploads/
+.ipynb_checkpoints/
+scripts/.ipynb_checkpoints/
 
-# virtual environments
-venv/
-.env
-backend/.env
+# --- Local tooling ---
+ngrok.exe
 
-# images used for testing
+# --- Scratch / test images (remove or narrow if you ship real assets) ---
 *.jpg
 *.png
 *.jpeg
-ngrok.exe
