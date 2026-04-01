@@ -42,6 +42,8 @@ weights/
 *.onnx
 !backend/agent/model/
 !backend/agent/model/*.onnx
+*.onnx
+backend/agent/model/
 
 # --- Datasets ---
 plantvillage/
