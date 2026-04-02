@@ -1,5 +1,6 @@
 # backend/agent/main.py
 import os
+import socket
 import sys
 
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
@@ -7,10 +8,21 @@ sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from dotenv import load_dotenv
-from agent.whatsapp import router as whatsapp_router
-from agent.scheduler import start_scheduler, stop_scheduler
+from backend.agent.whatsapp import router as whatsapp_router
+from backend.db.database import test_db_connection
+from backend.scheduler import start_scheduler, stop_scheduler
 
-load_dotenv(os.path.join(os.path.dirname(__file__), ".env"))
+BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+ENV_PATH = os.path.join(BASE_DIR, ".env")
+load_dotenv(ENV_PATH)
+print("📁 Loading .env from:", ENV_PATH)
+
+try:
+    socket.gethostbyname("google.com")
+    print("🌐 Internet OK")
+except Exception:
+    print("❌ DNS/Internet issue detected")
+    print("Try running: ipconfig /flushdns")
 
 app = FastAPI(
     title="KrishiMitra API",
@@ -31,8 +43,9 @@ app.include_router(whatsapp_router)
 @app.on_event("startup")
 async def startup():
     """Called when server starts"""
+    await test_db_connection()
     start_scheduler()
-    print("✅ KrishiMitra server started!")
+    print("KrishiMitra server started!")
 
 
 @app.on_event("shutdown")
@@ -53,3 +66,4 @@ def root():
 @app.get("/health")
 def health():
     return {"status": "healthy"}
+

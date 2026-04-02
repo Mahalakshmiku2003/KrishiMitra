@@ -15,8 +15,8 @@ PROG_DB_PATH = ROOT / "backend" / "data" / "progression_db.json"
 DISEASE_DB = json.loads(DISEASE_DB_PATH.read_text()) if DISEASE_DB_PATH.exists() else {}
 PROGRESSION_DB = json.loads(PROG_DB_PATH.read_text()) if PROG_DB_PATH.exists() else {}
 
-print(f"✅ Disease DB loaded: {len(DISEASE_DB)} entries")
-print(f"✅ Progression DB loaded: {len(PROGRESSION_DB)} entries")
+print(f"Disease DB loaded: {len(DISEASE_DB)} entries")
+print(f"Progression DB loaded: {len(PROGRESSION_DB)} entries")
 
 # PlantVillage class names
 CLASS_NAMES = [
@@ -201,3 +201,4 @@ def diagnose_image(
     except Exception as e:
         print(f"❌ Diagnosis error: {e}")
         return {"disease": "Could not analyze", "confidence": "0%", "error": True}
+

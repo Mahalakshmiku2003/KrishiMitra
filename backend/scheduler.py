@@ -1,5 +1,10 @@
 """
-scheduler.py
+backend/scheduler.py
+
+Merge note: theirs was an __init__-style re-export shim, not the real
+scheduler. This is the real scheduler (ours), unchanged except the
+send_morning_briefings alias is exposed so backend/agent/whatsapp.py
+can import it as before.
 """
 
 import asyncio
@@ -10,7 +15,7 @@ from apscheduler.schedulers.asyncio import AsyncIOScheduler
 from services.whatsapp_service import send_proactive_message
 from services.market_service import get_latest_prices
 from services.db import SessionLocal
-from scripts.scrape_karnataka_napanta import run as run_karnataka_scraper
+from backend.scripts.scrape_karnataka_napanta import run as run_karnataka_scraper
 
 scheduler = AsyncIOScheduler(timezone="Asia/Kolkata")
 _executor = ThreadPoolExecutor(max_workers=1)
@@ -22,9 +27,9 @@ async def morning_briefing():
 
     for farmer in farmers:
         try:
-            name     = farmer.get("name", "Kisan bhai")
+            name = farmer.get("name", "Kisan bhai")
             location = farmer.get("location", "India")
-            crops    = farmer.get("crops", [])
+            crops = farmer.get("crops", [])
 
             price_line = ""
             if crops:
@@ -36,7 +41,9 @@ async def morning_briefing():
                     db.close()
                 if prices:
                     p = prices[0]
-                    price_line = f"{crop}: ₹{p['modal_price']}/quintal at {p['market']}."
+                    price_line = (
+                        f"{crop}: ₹{p['modal_price']}/quintal at {p['market']}."
+                    )
                 else:
                     price_line = f"Aaj {crop} ka bhav fetch ho raha hai."
 
@@ -52,6 +59,10 @@ async def morning_briefing():
             print(f"[Scheduler] Failed briefing for {farmer.get('phone')}: {e}")
 
     print(f"[Scheduler] Morning briefing done. Sent to {len(farmers)} farmers.")
+
+
+# Alias so whatsapp.py can import send_morning_briefings directly
+send_morning_briefings = morning_briefing
 
 
 async def daily_karnataka_scrape():
@@ -156,12 +167,14 @@ def schedule_followup(phone: str, farmer_name: str, disease_name: str, bbox_pct:
     print(f"[Scheduler] Follow-up scheduled for {phone} on {followup_date.date()}")
 
 
-async def _send_followup(phone: str, farmer_name: str, disease_name: str, bbox_pct: float):
+async def _send_followup(
+    phone: str, farmer_name: str, disease_name: str, bbox_pct: float
+):
     msg = (
         f"{farmer_name} bhai, 3 din pehle aapki fasal mein "
         f"{disease_name} thi ({bbox_pct}% affected).\n"
         f"Kya dawai laga di? Aur ab kaisa lag raha hai?\n"
-        f"Ek nayi photo bhejein — main dekh leta hoon. 📸"
+        f"Ek nayi photo bhejein — main dekh leta hoon. 📷"
     )
     await send_proactive_message(phone, msg)
     print(f"[Scheduler] Follow-up sent to {phone} for {disease_name}")
@@ -169,15 +182,16 @@ async def _send_followup(phone: str, farmer_name: str, disease_name: str, bbox_p
 
 def _get_all_farmers() -> list:
     from sqlalchemy import text
+
     with SessionLocal() as db:
         rows = db.execute(
             text("SELECT phone, name, crops, location FROM farmers")
         ).fetchall()
     return [
         {
-            "phone":    row[0],
-            "name":     row[1] or "Kisan bhai",
-            "crops":    row[2] or [],
+            "phone": row[0],
+            "name": row[1] or "Kisan bhai",
+            "crops": row[2] or [],
             "location": row[3] or "India",
         }
         for row in rows
@@ -185,21 +199,23 @@ def _get_all_farmers() -> list:
 
 
 def start_scheduler():
-    """Register all jobs then start. Call this from main.py startup."""
+    """Register all jobs then start. Called from main.py startup."""
     if scheduler.running:
         return
 
     scheduler.add_job(
         morning_briefing,
         trigger="cron",
-        hour=7, minute=0,
+        hour=7,
+        minute=0,
         id="morning_briefing_job",
         replace_existing=True,
     )
     scheduler.add_job(
         daily_karnataka_scrape,
         trigger="cron",
-        hour=8, minute=20,
+        hour=8,
+        minute=20,
         id="daily_karnataka_scrape",
         replace_existing=True,
     )
@@ -215,3 +231,8 @@ def start_scheduler():
     for job in scheduler.get_jobs():
         print(f"  {job.id} → next run: {job.next_run_time}")
 
+
+def stop_scheduler():
+    if scheduler.running:
+        scheduler.shutdown()
+        print("[Scheduler] Stopped.")

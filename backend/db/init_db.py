@@ -1,14 +1,17 @@
 import asyncio
-from db.database import engine, Base
+import os
+import sys
 
-# 👇 IMPORTANT: import models so SQLAlchemy registers them
-from db import models
+sys.path.append(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
+
+from backend.db import models
+from backend.db.database import Base, engine
 
 
-async def init_db():
+async def init():
     async with engine.begin() as conn:
         await conn.run_sync(Base.metadata.create_all)
+    print('? All tables created!')
 
 
-if __name__ == "__main__":
-    asyncio.run(init_db())
+asyncio.run(init())

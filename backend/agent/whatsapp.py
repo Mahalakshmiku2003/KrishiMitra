@@ -8,16 +8,22 @@ from dotenv import load_dotenv
 load_dotenv(os.path.join(os.path.dirname(__file__), ".env"))
 
 from fastapi import APIRouter, Request, Response
-from twilio.twiml.messaging_response import MessagingResponse
 import requests as req
+from twilio.twiml.messaging_response import MessagingResponse
 
-from agent.scheduler import send_morning_briefings
-from agent.agent import process_message, client as groq_client
-from agent.diagnose import diagnose_image
-
-# ✅ NEW: DB imports
-from db.deps import get_db
-from db.crud import upsert_farmer, add_crop, add_disease
+from backend.agent.agent import (
+    client as groq_client,
+    process_message,
+)
+from backend.agent.diagnose import diagnose_image
+from backend.agent.scheduler import send_morning_briefings
+from backend.db.crud import (
+    add_disease,
+    _get_or_create_farmer,
+    normalize,
+    normalize_list,
+)
+from backend.db.database import AsyncSessionLocal
 
 router = APIRouter()
 
@@ -27,42 +33,34 @@ CLASSIFIER_PATH = os.path.join(_AGENT_DIR, _MODEL_SUB, "classifier.onnx")
 DETECTOR_PATH = os.path.join(_AGENT_DIR, _MODEL_SUB, "detector.onnx")
 
 
-# ─────────────────────────────────────────────────────────
-# 📥 Download image from Twilio
-# ─────────────────────────────────────────────────────────
 def download_image(url: str) -> str:
     try:
         sid = os.getenv("TWILIO_ACCOUNT_SID")
         token = os.getenv("TWILIO_AUTH_TOKEN")
 
-        print("📸 Media URL:", url)
+        print("Media URL:", url)
 
         response = req.get(
             url, auth=(sid, token), headers={"User-Agent": "Mozilla/5.0"}, timeout=10
         )
 
-        print(f"📥 Status: {response.status_code}")
+        print(f"Download status: {response.status_code}")
 
         if response.status_code == 200:
             img_path = os.path.join(os.path.dirname(__file__), "temp_image.jpg")
-
             with open(img_path, "wb") as f:
                 f.write(response.content)
-
-            print("✅ Image downloaded successfully")
+            print("Image downloaded successfully")
             return img_path
 
-        print("❌ Failed with status:", response.status_code)
+        print("Failed with status:", response.status_code)
         return None
 
     except Exception as e:
-        print("❌ Download error:", e)
+        print("Download error:", e)
         return None
 
 
-# ─────────────────────────────────────────────────────────
-# 🧠 NEW: Extract structured farmer data
-# ─────────────────────────────────────────────────────────
 async def extract_farmer_data(message: str):
     try:
         response = await groq_client.chat.completions.create(
@@ -74,6 +72,7 @@ async def extract_farmer_data(message: str):
 
 Return ONLY JSON:
 {
+  "name": "person name or null",
   "location": "city or null",
   "crop": "crop name or null",
   "disease": "disease or null",
@@ -85,7 +84,8 @@ Return ONLY JSON:
             temperature=0.1,
         )
 
-        import json, re
+        import json
+        import re
 
         raw = response.choices[0].message.content
         raw = re.sub(r"```json|```", "", raw).strip()
@@ -93,24 +93,19 @@ Return ONLY JSON:
         return json.loads(raw)
 
     except Exception as e:
-        print(f"⚠️ Extraction failed: {e}")
+        print(f"Extraction failed: {e}")
         return {}
 
 
-# ─────────────────────────────────────────────────────────
-# 🧪 Test route
-# ─────────────────────────────────────────────────────────
 @router.get("/test-briefing")
 async def test_briefing():
     await send_morning_briefings()
-    return {"status": "Briefings sent ✅"}
+    return {"status": "Briefings sent"}
 
 
-# ─────────────────────────────────────────────────────────
-# 📲 Main WhatsApp Webhook
-# ─────────────────────────────────────────────────────────
 @router.post("/whatsapp")
 async def whatsapp_webhook(request: Request):
+    print("STEP 1: Webhook received")
     form = await request.form()
 
     farmer_id = form.get("From", "")
@@ -118,16 +113,13 @@ async def whatsapp_webhook(request: Request):
     num_media = int(form.get("NumMedia", 0))
     media_url = form.get("MediaUrl0", "")
 
-    print(f"\n📱 From: {farmer_id}")
-    print(f"💬 Message: {message}")
-    print(f"📸 Media: {num_media}")
+    print(f"From: {farmer_id}")
+    print(f"Message: {message}")
+    print(f"Media count: {num_media}")
 
     try:
         disease_result = None
 
-        # ─────────────────────────────
-        # 📸 Image Handling (existing)
-        # ─────────────────────────────
         if num_media > 0 and media_url:
             img_path = download_image(media_url)
 
@@ -135,64 +127,96 @@ async def whatsapp_webhook(request: Request):
                 disease_result = diagnose_image(
                     img_path, CLASSIFIER_PATH, DETECTOR_PATH
                 )
+                print(f"Disease: {disease_result['disease']}")
+                print("Disease Result:", disease_result)
 
-                print(f"🦠 Disease: {disease_result['disease']}")
-                print("🧪 Disease Result:", disease_result)
             if not message:
                 message = "I sent a photo of my crop"
 
-        # ─────────────────────────────
-        # 💾 NEW: Auto-store in DB
-        # ─────────────────────────────
-        async for db in get_db():
+        print("STEP 2: Before DB write")
+        db = AsyncSessionLocal()
+        try:
             data = await extract_farmer_data(message)
+            name = normalize(data.get("name"))
+            location = normalize(data.get("location"))
+            crop = normalize(data.get("crop"))
+            disease = normalize(data.get("disease"))
+            language = normalize(data.get("language"))
 
-            location = data.get("location")
-            crop = data.get("crop")
-            disease = data.get("disease")
-            language = data.get("language")
-
-            # Override disease if image detected
             if disease_result:
-                disease = disease_result.get("disease")
+                disease = normalize(disease_result.get("disease"))
 
-            await upsert_farmer(db, farmer_id, location=location, language=language)
+            farmer, created = await _get_or_create_farmer(db, farmer_id)
+            if farmer:
+                changed = created
+                
+                if location is not None and farmer.location != location:
+                    farmer.location = location
+                    changed = True
 
-            if crop:
-                await add_crop(db, farmer_id, crop)
+                if language is not None:
+                    farmer.language = language
 
-            if disease:
-                await add_disease(db, farmer_id, disease)
+                if crop:
+                    crops = normalize_list([*(farmer.crops or []), crop])
+                    if crops != normalize_list(farmer.crops):
+                        farmer.crops = crops
+                        changed = True
 
-            print(f"💾 Stored for {farmer_id}")
+                if changed:
+                    if hasattr(farmer, "last_detection") and not isinstance(
+                        farmer.last_detection, dict
+                    ):
+                        print("FIXING last_detection before commit")
+                        farmer.last_detection = {}
 
-        # ─────────────────────────────
-        # 🤖 Existing Agent (unchanged)
-        # ─────────────────────────────
-        reply = await process_message(
-            farmer_id=farmer_id,
-            message=message if message else "Hello",
-            disease_result=disease_result,
-        )
+                    await db.commit()
+                    await db.refresh(farmer)
+                    print("DB updated once")
+                    print("Farmer saved:", farmer.phone)
 
-        print(f"🤖 Reply: {reply[:100]}...")
+                if disease_result:
+                    await add_disease(db, farmer_id, disease_result)
+                elif disease:
+                    await add_disease(
+                        db,
+                        farmer_id,
+                        {"disease": disease, "severity": {"level": "unknown"}},
+                    )
+
+            print("DB updated successfully")
+            print("STEP 2 DONE: DB updated")
+        except Exception as e:
+            print("DB ERROR:", e)
+            raise
+        finally:
+            await db.close()
+
+        print("STEP 3: Calling process_message")
+        try:
+            reply = await process_message(
+                farmer_id=farmer_id,
+                message=message if message else "Hello",
+                disease_result=disease_result,
+            )
+        except Exception as e:
+            print("ERROR in process_message:", e)
+            raise
+
+        print(f"Reply: {reply[:100]}...")
 
     except Exception as e:
-        print(f"❌ Error: {e}")
+        print(f"Error: {e}")
         reply = "Sorry, please try again."
 
-    # ─────────────────────────────
-    # 📤 Send reply (existing)
-    # ─────────────────────────────
     twiml = MessagingResponse()
+    print("STEP 7: Sending response to WhatsApp")
     twiml.message(reply)
+    print("RESPONSE SENT")
 
     return Response(content=str(twiml), media_type="application/xml")
 
 
-# ─────────────────────────────────────────────────────────
-# 🧪 Health test
-# ─────────────────────────────────────────────────────────
 @router.get("/whatsapp/test")
 def test_webhook():
-    return {"status": "WhatsApp webhook running ✅"}
+    return {"status": "WhatsApp webhook running"}

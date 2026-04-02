@@ -1,9 +1,13 @@
 # backend/agent/tools.py
 import os
 import json
+import time
 import requests
 from pathlib import Path
 from dotenv import load_dotenv
+from sqlalchemy import and_, func, or_, select
+
+from backend.db.models import MandiPrice
 
 load_dotenv(os.path.join(os.path.dirname(__file__), ".env"))
 
@@ -25,7 +29,10 @@ MANDI_COORDS = (
     else {}
 )
 
-print(f"✅ Tools loaded: {len(DISEASE_DB)} diseases, {len(MANDI_COORDS)} mandis")
+print(f"Tools loaded: {len(DISEASE_DB)} diseases, {len(MANDI_COORDS)} mandis")
+
+MANDI_PRICE_CACHE_TTL = 600
+mandi_price_cache = {}
 
 
 class tool:
@@ -39,6 +46,303 @@ class tool:
 
     def __call__(self, *args, **kwargs):
         return self.func(*args, **kwargs)
+
+
+def _normalize_location_term(value: str) -> str | None:
+    if not value:
+        return None
+    value = value.strip().lower()
+    return value or None
+
+
+def _extract_location_terms(location: str) -> list[str]:
+    if not location:
+        return []
+
+    terms = []
+    for part in location.split(","):
+        term = _normalize_location_term(part)
+        if term and term not in terms:
+            terms.append(term)
+
+    compact = _normalize_location_term(location)
+    if compact and compact not in terms:
+        terms.append(compact)
+
+    return terms
+
+
+def _format_mandi_rows(rows, crop: str, location: str) -> str:
+    if not rows:
+        if location:
+            return f"Price data not available for {crop} near {location}"
+        return f"Price data not available for {crop}"
+
+    parts = [f"Mandi Prices for {crop}:"]
+    for row in rows:
+        parts.append(
+            "\n".join(
+                [
+                    f"Market: {row.market}",
+                    f"Min: Rs.{row.min_price}",
+                    f"Max: Rs.{row.max_price}",
+                    f"Modal: Rs.{row.modal_price}",
+                ]
+            )
+        )
+    return "\n---\n".join(parts)
+
+
+def _serialize_mandi_rows(rows) -> list[dict]:
+    return [
+        {
+            "market": row.market,
+            "min": row.min_price,
+            "max": row.max_price,
+            "modal": row.modal_price,
+        }
+        for row in rows
+    ]
+
+
+def format_mandi_data(mandi_payload: dict) -> str:
+    crop = mandi_payload.get("crop")
+    location = mandi_payload.get("location")
+    markets = mandi_payload.get("markets", [])
+
+    if not markets:
+        if location:
+            return f"Price data not available for {crop} near {location}"
+        return f"Price data not available for {crop}"
+
+    parts = [f"Mandi Prices for {crop}:"]
+    for item in markets:
+        parts.append(
+            "\n".join(
+                [
+                    f"Market: {item['market']}",
+                    f"Min: Rs.{item['min']}",
+                    f"Max: Rs.{item['max']}",
+                    f"Modal: Rs.{item['modal']}",
+                ]
+            )
+        )
+    return "\n---\n".join(parts)
+
+
+def _build_latest_mandi_query(crop: str, location_terms: list[str], match_field: str | None):
+    filters = [func.lower(MandiPrice.commodity) == crop]
+    if match_field == "district" and location_terms:
+        filters.append(
+            or_(*[MandiPrice.district.ilike(f"%{term}%") for term in location_terms])
+        )
+    elif match_field == "state" and location_terms:
+        filters.append(
+            or_(*[MandiPrice.state.ilike(f"%{term}%") for term in location_terms])
+        )
+
+    latest_dates = (
+        select(
+            MandiPrice.market.label("market"),
+            func.max(MandiPrice.arrival_date).label("latest_date"),
+        )
+        .where(*filters)
+        .group_by(MandiPrice.market)
+        .subquery()
+    )
+
+    return (
+        select(MandiPrice)
+        .join(
+            latest_dates,
+            and_(
+                MandiPrice.market == latest_dates.c.market,
+                MandiPrice.arrival_date == latest_dates.c.latest_date,
+            ),
+        )
+        .where(*filters)
+        .order_by(MandiPrice.arrival_date.desc(), MandiPrice.market.asc())
+    )
+
+
+async def get_mandi_price_data_from_db(db, crop: str, location: str) -> dict:
+    crop = _normalize_location_term(crop)
+    location = _normalize_location_term(location)
+
+    if not crop:
+        return {"crop": crop, "location": location or "", "markets": []}
+
+    cache_key = (crop, location or "")
+    cached = mandi_price_cache.get(cache_key)
+    if cached:
+        cached_value, cached_at = cached
+        if time.time() - cached_at < MANDI_PRICE_CACHE_TTL:
+            return cached_value
+
+    location_terms = _extract_location_terms(location or "")
+
+    district_query = (
+        _build_latest_mandi_query(crop, location_terms, "district")
+        if location_terms
+        else None
+    )
+    state_query = (
+        _build_latest_mandi_query(crop, location_terms, "state")
+        if location_terms
+        else None
+    )
+    fallback_query = _build_latest_mandi_query(crop, [], None)
+
+    rows = []
+    if district_query is not None:
+        rows = (await db.execute(district_query)).scalars().all()
+
+    if not rows and state_query is not None:
+        rows = (await db.execute(state_query)).scalars().all()
+
+    if not rows:
+        rows = (await db.execute(fallback_query)).scalars().all()
+
+    print("📊 TOTAL ROWS FROM DB:", len(rows))
+
+    mandi_payload = {
+        "crop": crop,
+        "location": location or "",
+        "markets": _serialize_mandi_rows(rows),
+    }
+    mandi_price_cache[cache_key] = (mandi_payload, time.time())
+    if len(mandi_price_cache) > 200:
+        mandi_price_cache.clear()
+    return mandi_payload
+
+
+async def get_mandi_price_data_from_db(db, crop: str, location: str) -> dict:
+    crop = _normalize_location_term(crop)
+    location = _normalize_location_term(location)
+
+    if not crop:
+        return {"crop": crop, "location": location or "", "markets": [], "source": "none"}
+
+    cache_key = (crop, location or "")
+    cached = mandi_price_cache.get(cache_key)
+    if cached:
+        cached_value, cached_at = cached
+        if time.time() - cached_at < MANDI_PRICE_CACHE_TTL:
+            return cached_value
+
+    location_terms = _extract_location_terms(location or "")
+
+    # Level 1: District/City exact match
+    if location_terms:
+        district_query = _build_latest_mandi_query(crop, location_terms, "district")
+        rows = (await db.execute(district_query)).scalars().all()
+
+        if rows:
+            print(f"Level 1 match: {len(rows)} markets in district")
+            result = _build_result(crop, location, rows, "district_match")
+            _cache_result(cache_key, result)
+            return result
+
+    # Level 2: State match
+    if location_terms:
+        state_query = _build_latest_mandi_query(crop, location_terms, "state")
+        rows = (await db.execute(state_query)).scalars().all()
+
+        if rows:
+            print(f"Level 2 match: {len(rows)} markets in state")
+            result = _build_result(crop, location, rows, "state_match")
+            _cache_result(cache_key, result)
+            return result
+
+    # Level 3: All India best prices
+    fallback_query = _build_latest_mandi_query(crop, [], None)
+    rows = (await db.execute(fallback_query)).scalars().all()
+
+    if rows:
+        print(f"Level 3 match: {len(rows)} markets nationally")
+        result = _build_result(crop, location, rows, "national")
+        _cache_result(cache_key, result)
+        return result
+
+    # Level 4: Agmarknet API
+    print("No DB data -> trying Agmarknet API")
+    api_result = _fetch_agmarknet(crop)
+    if api_result:
+        result = {
+            "crop": crop,
+            "location": location or "",
+            "markets": api_result,
+            "source": "agmarknet_api",
+        }
+        _cache_result(cache_key, result)
+        return result
+
+    # Level 5: Empty -> LLM will handle
+    print(f"No data anywhere for {crop}")
+    return {
+        "crop": crop,
+        "location": location or "",
+        "markets": [],
+        "source": "none",
+    }
+
+
+def _build_result(crop, location, rows, source) -> dict:
+    return {
+        "crop": crop,
+        "location": location or "",
+        "markets": _serialize_mandi_rows(rows),
+        "source": source,
+    }
+
+
+def _cache_result(cache_key, result):
+    mandi_price_cache[cache_key] = (result, time.time())
+    if len(mandi_price_cache) > 200:
+        mandi_price_cache.clear()
+
+
+def _fetch_agmarknet(crop: str) -> list:
+    """Fetch live prices from Agmarknet government API"""
+    try:
+        key = os.getenv("AGMARKNET_API_KEY")
+        if not key:
+            return []
+
+        res = requests.get(
+            "https://api.data.gov.in/resource/9ef84268-d588-465a-a308-a864a43d0070",
+            params={
+                "api-key": key,
+                "format": "json",
+                "limit": 10,
+                "filters[Commodity]": crop.capitalize(),
+            },
+            timeout=5,
+        ).json()
+
+        records = res.get("records", [])
+        if not records:
+            return []
+
+        return [
+            {
+                "market": r.get("Market", "Unknown"),
+                "min": float(r.get("Min Price", 0)),
+                "max": float(r.get("Max Price", 0)),
+                "modal": float(r.get("Modal Price", 0)),
+                "min_price": float(r.get("Min Price", 0)),
+                "max_price": float(r.get("Max Price", 0)),
+                "modal_price": float(r.get("Modal Price", 0)),
+            }
+            for r in records
+        ]
+    except Exception as e:
+        print(f"Agmarknet API error: {e}")
+        return []
+
+async def get_mandi_price_from_db(db, crop: str, location: str) -> str:
+    mandi_payload = await get_mandi_price_data_from_db(db, crop, location)
+    return format_mandi_data(mandi_payload)
 
 
 @tool
@@ -73,51 +377,8 @@ def get_weather(location: str) -> str:
 
 @tool
 def get_mandi_price(crop: str) -> str:
-    """Get live mandi prices for a crop."""
-    fallback = {
-        "tomato": {"min": 800, "max": 1500, "modal": 1200},
-        "potato": {"min": 600, "max": 1200, "modal": 900},
-        "onion": {"min": 1000, "max": 2000, "modal": 1500},
-        "wheat": {"min": 2000, "max": 2500, "modal": 2200},
-        "rice": {"min": 1800, "max": 2800, "modal": 2200},
-        "cotton": {"min": 5500, "max": 6500, "modal": 6000},
-    }
-    try:
-        key = os.getenv("AGMARKNET_API_KEY")
-        if key:
-            res = requests.get(
-                "https://api.data.gov.in/resource/9ef84268-d588-465a-a308-a864a43d0070",
-                params={
-                    "api-key": key,
-                    "format": "json",
-                    "limit": 5,
-                    "filters[Commodity]": crop.capitalize(),
-                },
-                timeout=5,
-            ).json()
-            if res.get("records"):
-                result = f"Live Mandi Prices for {crop}:\n"
-                for r in res["records"][:3]:
-                    result += (
-                        f"Market: {r.get('Market', 'N/A')}, {r.get('State', 'N/A')}\n"
-                        f"Min: Rs.{r.get('Min Price', 'N/A')} | "
-                        f"Max: Rs.{r.get('Max Price', 'N/A')} | "
-                        f"Modal: Rs.{r.get('Modal Price', 'N/A')}\n---\n"
-                    )
-                return result
-    except:
-        pass
-    crop_lower = crop.lower()
-    if crop_lower in fallback:
-        p = fallback[crop_lower]
-        return (
-            f"Mandi Prices for {crop}:\n"
-            f"Min: Rs.{p['min']}/quintal\n"
-            f"Max: Rs.{p['max']}/quintal\n"
-            f"Modal: Rs.{p['modal']}/quintal\n"
-            f"Note: Check local mandi for exact rates"
-        )
-    return f"Price data not available for {crop}"
+    """Compatibility wrapper for mandi prices."""
+    return f"Mandi price lookup now requires a database session for {crop}"
 
 
 @tool
@@ -267,3 +528,4 @@ def get_govt_schemes(state: str) -> str:
             f"Scheme : {s['name']}\nBenefit: {s['benefit']}\nHow    : {s['how']}\n---\n"
         )
     return result
+
