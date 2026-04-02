@@ -154,6 +154,35 @@ async def use_tools(message: str, disease_result: dict = None, farmer_id: str = 
         location = extract_location(message)
         results.append(get_weather.run(location))
 
+    # ── NEW: Price alert subscription ─────────────────────────────────────────
+    # Only fires if message has BOTH a crop AND alert-intent words AND a number
+    # Does NOT interfere with "tomato price?" or "mandi" queries
+    alert_match = _parse_price_alert(msg_lower)
+    if alert_match:
+        from farmer_store import save_price_alert
+        save_price_alert(
+            phone=farmer_id,
+            commodity=alert_match["commodity"],
+            target_price=alert_match["price"],
+            direction=alert_match["direction"],
+        )
+        return (
+            f"__DIRECT_REPLY__✅ Alert set!\n\n"
+            f"Jab *{alert_match['commodity'].title()}* ka bhav "
+            f"Rs.*{alert_match['price']}*/quintal se "
+            f"{'upar' if alert_match['direction'] == 'above' else 'neeche'} "
+            f"jayega, main aapko turant bata dunga! 🔔\n\n"
+            f"Koi aur madad chahiye? 🌾"
+        )
+
+    # ── NEW: Price prediction ─────────────────────────────────────────────────
+    # Only fires on explicit prediction words — won't trigger on "tomato price?"
+    if any(w in msg_lower for w in ["predict", "forecast", "rise", "fall",
+                                     "badhega", "ghategaa", "trend", "future"]):
+        crop = _extract_crop_explicit(msg_lower)
+        if crop:
+            return await _get_price_prediction(crop, farmer_id)
+
     # Price tool — keep this separate from nearby
     if any(w in msg_lower for w in ["price", "rate", "bhav"]):
         crop = extract_crop(message)
@@ -238,3 +267,78 @@ def extract_crop(message: str) -> str:
         if crop in msg_lower:
             return crop
     return "tomato"
+
+import re
+
+def _extract_crop_explicit(msg_lower: str) -> str | None:
+    """Returns crop only if explicitly mentioned. Never defaults."""
+    for c in ["tomato","potato","onion","wheat","rice","cotton",
+              "corn","grape","pepper","mango","banana"]:
+        if c in msg_lower:
+            return c
+    return None
+
+
+def _parse_price_alert(msg_lower: str) -> dict | None:
+    """
+    Returns alert dict only if ALL three are present:
+    1. a crop name
+    2. an alert-intent word (alert/notify/bata/crosses)
+    3. a number (the target price)
+    
+    "tomato price?" → None  (no alert word, no number)
+    "nearby mandi"  → None  (no alert word, no number)
+    "alert when onion crosses 2000" → {"commodity":"onion","price":2000,"direction":"above"}
+    """
+    crop = _extract_crop_explicit(msg_lower)
+    if not crop:
+        return None
+
+    alert_words = ["alert", "notify", "bata", "inform", "crosses",
+                   "upar ho", "neeche ho", "jab"]
+    if not any(w in msg_lower for w in alert_words):
+        return None
+
+    numbers = re.findall(r'\d+(?:\.\d+)?', msg_lower)
+    if not numbers:
+        return None
+
+    price     = float(numbers[0])
+    direction = "below" if any(w in msg_lower for w in
+                               ["below", "neeche", "less", "gire", "ghate"]) else "above"
+    return {"commodity": crop, "price": price, "direction": direction}
+
+
+async def _get_price_prediction(crop: str, farmer_id: str) -> str:
+    from services.prediction_service import predict_prices
+    from services.db import SessionLocal
+    from services.market_service import find_best_mandi_for_commodity
+
+    db = SessionLocal()
+    try:
+        saved  = get_farmer_location(farmer_id)
+        market = "General"
+        if saved:
+            mandis = find_best_mandi_for_commodity(
+                saved["lat"], saved["lng"], crop, 500, 1, db
+            )
+            if mandis:
+                market = mandis[0]["market"]
+
+        pred = predict_prices(crop, market, db)
+    finally:
+        db.close()
+
+    if pred.get("error"):
+        return f"__DIRECT_REPLY__{pred['error']}\n\nKoi aur madad chahiye? 🌾"
+
+    trend_emoji = {"rising": "📈", "falling": "📉", "stable": "➡️"}.get(pred["trend"], "")
+
+    return (
+        f"__DIRECT_REPLY__{trend_emoji} *{crop.title()} Price Forecast*\n\n"
+        f"Aaj ka bhav  : Rs.*{pred['current_price']}*/quintal\n"
+        f"7 din baad   : Rs.*{pred['day_7_price']}*/quintal\n"
+        f"Badlaav      : {'+' if pred['change_pct'] > 0 else ''}{pred['change_pct']}%\n\n"
+        f"*Salah:* {pred['advice']}\n\n"
+        f"Koi aur madad chahiye? 🌾"
+    )

@@ -194,3 +194,40 @@ def save_farmer_location(phone: str, lat: float, lng: float):
         )
         db.commit()
     print(f"[FarmerStore] Saved location for {phone}: {lat}, {lng}")
+
+def save_price_alert(phone: str, commodity: str, target_price: float, direction: str):
+    with SessionLocal() as db:
+        db.execute(
+            text("""
+                INSERT INTO price_alerts (phone, commodity, target_price, direction)
+                VALUES (:phone, :commodity, :target_price, :direction)
+            """),
+            {"phone": phone, "commodity": commodity,
+             "target_price": target_price, "direction": direction}
+        )
+        db.commit()
+    print(f"[Alert] Saved: {phone} wants {commodity} {direction} Rs.{target_price}")
+
+
+def get_active_alerts() -> list:
+    with SessionLocal() as db:
+        rows = db.execute(
+            text("""
+                SELECT id, phone, commodity, target_price, direction
+                FROM price_alerts WHERE active = TRUE
+            """)
+        ).fetchall()
+    return [
+        {"id": r[0], "phone": r[1], "commodity": r[2],
+         "target_price": float(r[3]), "direction": r[4]}
+        for r in rows
+    ]
+
+
+def deactivate_alert(alert_id: int):
+    with SessionLocal() as db:
+        db.execute(
+            text("UPDATE price_alerts SET active = FALSE WHERE id = :id"),
+            {"id": alert_id}
+        )
+        db.commit()

@@ -63,6 +63,84 @@ async def daily_karnataka_scrape():
     except Exception as e:
         print(f"[Scheduler] Karnataka scrape failed: {e}")
 
+async def check_price_alerts():
+    """
+    Runs every hour.
+    For each active alert, checks prices at mandis NEAR that farmer.
+    Only fires if the farmer's nearest mandi crosses the threshold.
+    """
+    from farmer_store import get_active_alerts, deactivate_alert, get_farmer_location
+    from services.market_service import find_best_mandi_for_commodity
+
+    alerts = get_active_alerts()
+    if not alerts:
+        print("[Alerts] No active alerts to check.")
+        return
+
+    print(f"[Alerts] Checking {len(alerts)} alerts...")
+    db = SessionLocal()
+
+    try:
+        for alert in alerts:
+            phone     = alert["phone"]
+            commodity = alert["commodity"]
+
+            # Get farmer's saved location
+            location = get_farmer_location(phone)
+
+            if location:
+                # Check price at nearest mandi to farmer
+                mandis = find_best_mandi_for_commodity(
+                    farmer_lat=location["lat"],
+                    farmer_lng=location["lng"],
+                    commodity=commodity,
+                    radius_km=300,
+                    top_n=1,
+                    db=db,
+                )
+                if not mandis:
+                    print(f"[Alerts] No nearby mandi data for {phone} / {commodity}")
+                    continue
+
+                nearest       = mandis[0]
+                current_price = nearest["modal_price"]
+                market_name   = nearest["market"]
+                distance_km   = nearest["distance_km"]
+
+            else:
+                # Farmer has no saved location — skip, can't check meaningfully
+                print(f"[Alerts] No location for {phone}, skipping alert")
+                continue
+
+            # Check if threshold crossed
+            triggered = (
+                alert["direction"] == "above" and current_price >= alert["target_price"]
+                or
+                alert["direction"] == "below" and current_price <= alert["target_price"]
+            )
+
+            print(
+                f"[Alerts] {phone} | {commodity} | "
+                f"current=Rs.{current_price} | "
+                f"target={alert['direction']} Rs.{alert['target_price']} | "
+                f"triggered={triggered}"
+            )
+
+            if triggered:
+                direction_word = "upar" if alert["direction"] == "above" else "neeche"
+                msg = (
+                    f"🔔 *Price Alert!*\n\n"
+                    f"*{commodity.title()}* ab Rs.*{current_price}*/quintal hai\n"
+                    f"Paas ka mandi: *{market_name}* ({distance_km}km)\n\n"
+                    f"Aapka target tha: Rs.{alert['target_price']} se {direction_word}\n\n"
+                    f"✅ Ab bechne ka sahi waqt! 🌾"
+                )
+                await send_proactive_message(phone, msg)
+                deactivate_alert(alert["id"])
+                print(f"[Alerts] ✅ Fired and deactivated for {phone}")
+
+    finally:
+        db.close()
 
 def schedule_followup(phone: str, farmer_name: str, disease_name: str, bbox_pct: float):
     followup_date = datetime.now() + timedelta(days=3)
@@ -125,7 +203,12 @@ def start_scheduler():
         id="daily_karnataka_scrape",
         replace_existing=True,
     )
-
+    scheduler.add_job(
+        check_price_alerts,
+        "cron", minute=0,       # every hour at :00
+        id="price_alerts_job",
+        replace_existing=True,
+    )
     scheduler.start()
 
     print("[Scheduler] Started. Registered jobs:")
