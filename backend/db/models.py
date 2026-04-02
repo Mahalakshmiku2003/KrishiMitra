@@ -55,6 +55,8 @@ class Farmer(Base):
         default=dict,
         server_default=text("'{}'::jsonb"),
     )
+    # Real language column — NULL means not yet selected by farmer
+    language = Column(String, nullable=True, default=None)
 
     @validates("last_detection")
     def validate_last_detection(self, key, value):
@@ -70,14 +72,6 @@ class Farmer(Base):
     @phone_number.setter
     def phone_number(self, value):
         self.phone = value
-
-    @property
-    def language(self):
-        return "hindi"
-
-    @language.setter
-    def language(self, value):
-        return None
 
 
 class MandiPrice(Base):

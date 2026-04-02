@@ -1,8 +1,16 @@
+"""
+scheduler.py  (agent/)
+Base: agent/scheduler.py
+Merged in: weather fetching, farming condition analysis,
+           LLM-powered briefing from services/scheduler.py
+"""
+
 import asyncio
 import os
 import re
 import time
-from datetime import datetime
+from concurrent.futures import ThreadPoolExecutor
+from datetime import datetime, timedelta
 from typing import Any
 
 import httpx
@@ -10,23 +18,21 @@ from apscheduler.schedulers.asyncio import AsyncIOScheduler
 from apscheduler.triggers.cron import CronTrigger
 from dotenv import load_dotenv
 from sqlalchemy import select
-from twilio.rest import Client
 
 from backend.agent.agent import client as groq_client
 from backend.agent.tools import get_mandi_price_from_db, get_treatment
 from backend.db.crud import get_farmer_profile
 from backend.db.deps import get_db
 from backend.db.models import Farmer
+from scripts.scrape_karnataka_napanta import run as run_karnataka_scraper
+from services.whatsapp_service import send_proactive_message
 
 load_dotenv(os.path.join(os.path.dirname(__file__), ".env"))
 
-TWILIO_ACCOUNT_SID = os.getenv("TWILIO_ACCOUNT_SID")
-TWILIO_AUTH_TOKEN = os.getenv("TWILIO_AUTH_TOKEN")
-TWILIO_WHATSAPP_NUMBER = os.getenv("TWILIO_WHATSAPP_NUMBER")
 OPENWEATHER_API_KEY = os.getenv("OPENWEATHER_API_KEY")
 OPENWEATHER_URL = "https://api.openweathermap.org/data/2.5/weather"
 
-DEFAULT_WEATHER = {
+DEFAULT_WEATHER: dict[str, float] = {
     "temp": 30.0,
     "humidity": 50.0,
     "rain": 0.0,
@@ -36,27 +42,23 @@ WEATHER_CACHE_TTL = 1800
 weather_cache: dict[str, tuple[dict[str, float], float]] = {}
 http_client = httpx.AsyncClient(timeout=10.0)
 
-twilio_client = (
-    Client(TWILIO_ACCOUNT_SID, TWILIO_AUTH_TOKEN)
-    if TWILIO_ACCOUNT_SID and TWILIO_AUTH_TOKEN
-    else None
-)
+scheduler = AsyncIOScheduler()
+_executor = ThreadPoolExecutor(max_workers=1)
+
+
+# ── Weather helpers ───────────────────────────────────────────────────────────
 
 
 def _safe_float(value: Any, fallback: float) -> float:
     try:
-        if value is None:
-            return fallback
-        return float(value)
+        return float(value) if value is not None else fallback
     except (TypeError, ValueError):
         return fallback
 
 
 def _extract_metric(pattern: str, text: str, fallback: float) -> float:
     match = re.search(pattern, text, flags=re.IGNORECASE)
-    if not match:
-        return fallback
-    return _safe_float(match.group(1), fallback)
+    return _safe_float(match.group(1), fallback) if match else fallback
 
 
 def normalize_weather_data(weather_result: Any) -> dict[str, float]:
@@ -69,80 +71,58 @@ def normalize_weather_data(weather_result: Any) -> dict[str, float]:
             "rain": _safe_float(weather_result.get("rain"), DEFAULT_WEATHER["rain"]),
             "wind": _safe_float(weather_result.get("wind"), DEFAULT_WEATHER["wind"]),
         }
-
-    weather_text = str(weather_result or "")
+    text = str(weather_result or "")
     return {
         "temp": _extract_metric(
-            r"temperature\s*[:=]\s*(-?\d+(?:\.\d+)?)",
-            weather_text,
-            DEFAULT_WEATHER["temp"],
+            r"temperature\s*[:=]\s*(-?\d+(?:\.\d+)?)", text, DEFAULT_WEATHER["temp"]
         ),
         "humidity": _extract_metric(
-            r"humidity\s*[:=]\s*(\d+(?:\.\d+)?)",
-            weather_text,
-            DEFAULT_WEATHER["humidity"],
+            r"humidity\s*[:=]\s*(\d+(?:\.\d+)?)", text, DEFAULT_WEATHER["humidity"]
         ),
         "rain": _extract_metric(
             r"(?:rain|precipitation)(?:\s+chance)?\s*[:=]\s*(\d+(?:\.\d+)?)",
-            weather_text,
+            text,
             DEFAULT_WEATHER["rain"],
         ),
         "wind": _extract_metric(
-            r"wind(?:\s+speed)?\s*[:=]\s*(\d+(?:\.\d+)?)",
-            weather_text,
-            DEFAULT_WEATHER["wind"],
+            r"wind(?:\s+speed)?\s*[:=]\s*(\d+(?:\.\d+)?)", text, DEFAULT_WEATHER["wind"]
         ),
     }
+
+
 async def fetch_weather_api(location: str) -> dict[str, float]:
-    print(f"🌤️ Fetching weather for: {location}")
+    print(f"[Scheduler] Fetching weather: {location}")
     key = location.strip().lower()
-    cached_weather = weather_cache.get(key)
-    if cached_weather:
-        cached_data, cached_at = cached_weather
-        if time.time() - cached_at < WEATHER_CACHE_TTL:
-            return cached_data
+    cached = weather_cache.get(key)
+    if cached and time.time() - cached[1] < WEATHER_CACHE_TTL:
+        return cached[0]
 
     if not OPENWEATHER_API_KEY:
-        print(
-            "OpenWeather API key not configured. Falling back to default weather data."
-        )
         return normalize_weather_data(DEFAULT_WEATHER)
 
     for attempt in range(2):
         try:
-            print("➡️ Calling OpenWeather API")
-            try:
-                response = await http_client.get(
-                    OPENWEATHER_URL,
-                    params={
-                        "q": location,
-                        "appid": OPENWEATHER_API_KEY,
-                        "units": "metric",
-                    },
-                )
-            except Exception as e:
-                print("❌ ERROR in weather API:", e)
-                raise
+            response = await http_client.get(
+                OPENWEATHER_URL,
+                params={"q": location, "appid": OPENWEATHER_API_KEY, "units": "metric"},
+            )
             response.raise_for_status()
-            print("✅ Weather API success")
-            payload = response.json()
-
-            parsed_weather = normalize_weather_data(
+            p = response.json()
+            parsed = normalize_weather_data(
                 {
-                    "temp": payload.get("main", {}).get("temp"),
-                    "humidity": payload.get("main", {}).get("humidity"),
-                    "rain": payload.get("rain", {}).get("1h", 0.0),
-                    "wind": payload.get("wind", {}).get("speed"),
+                    "temp": p.get("main", {}).get("temp"),
+                    "humidity": p.get("main", {}).get("humidity"),
+                    "rain": p.get("rain", {}).get("1h", 0.0),
+                    "wind": p.get("wind", {}).get("speed"),
                 }
             )
             if len(weather_cache) > 100:
                 weather_cache.clear()
-            weather_cache[key] = (parsed_weather, time.time())
-            return parsed_weather
+            weather_cache[key] = (parsed, time.time())
+            return parsed
         except Exception as e:
-            print(f"Weather API issue or invalid location: {location}")
             print(
-                f"OpenWeather fetch failed for {location} on attempt {attempt + 1}: {e}"
+                f"[Scheduler] Weather fetch attempt {attempt + 1} failed ({location}): {e}"
             )
             if attempt == 1:
                 return normalize_weather_data(DEFAULT_WEATHER)
@@ -152,16 +132,21 @@ async def close_http_client():
     await http_client.aclose()
 
 
+# ── Farming condition analysis ────────────────────────────────────────────────
+
+
 def analyze_farming_conditions(
-    weather: dict[str, Any], disease: str | None, crops: list[str] | None
+    weather: dict[str, Any],
+    disease: str | None,
+    crops: list[str] | None,
 ) -> dict[str, str]:
     humidity = _safe_float(weather.get("humidity"), DEFAULT_WEATHER["humidity"])
     rain = _safe_float(weather.get("rain"), DEFAULT_WEATHER["rain"])
     wind = _safe_float(weather.get("wind"), DEFAULT_WEATHER["wind"])
     hour = datetime.now().hour
-    crop_names = [str(crop).strip().lower() for crop in (crops or []) if crop]
+    crop_names = [str(c).strip().lower() for c in (crops or []) if c]
 
-    advice = {
+    advice: dict[str, str] = {
         "watering": "\u2705 Safe to water today",
         "spray": "No spray needed today",
     }
@@ -200,35 +185,12 @@ def analyze_farming_conditions(
     return advice
 
 
-async def send_whatsapp(to: str, message: str, retries: int = 3):
-    if not twilio_client:
-        print(f"Twilio client not configured. Unable to send message to {to}.")
-        return
-
-    for attempt in range(retries):
-        try:
-            await asyncio.to_thread(
-                twilio_client.messages.create,
-                from_=TWILIO_WHATSAPP_NUMBER,
-                to=to,
-                body=message,
-            )
-
-            print(f"Sent to {to}")
-            return
-
-        except Exception as e:
-            print(f"Retry {attempt + 1} failed for {to}: {e}")
-            if attempt < retries - 1:
-                await asyncio.sleep(2)
-
-    print(f"Failed to send to {to} after retries")
+# ── LLM briefing generation ───────────────────────────────────────────────────
 
 
-async def generate_briefing(db, farmer_id: str) -> str:
+async def generate_briefing(db, farmer_id: str) -> str | None:
     try:
         profile = await get_farmer_profile(db, farmer_id)
-
         farmer = profile["farmer"]
         crops = profile["crops"]
         recent_disease = profile["recent_disease"]
@@ -240,30 +202,22 @@ async def generate_briefing(db, farmer_id: str) -> str:
         language = farmer.language or "Hindi"
 
         if not location:
-            print(f"Warning: skipping farmer {farmer_id} due to missing DB location")
+            print(f"[Scheduler] Skipping {farmer_id} — no location")
             return None
 
-        print(f"\nFarmer: {farmer_id}")
-        print(f"  Location: {location}")
-        print(f"  Crops: {crops}")
-        print(f"  Disease: {recent_disease}")
-
         weather_data = await fetch_weather_api(location)
-        print("🌤️ Weather Data:", weather_data)
         advice = analyze_farming_conditions(weather_data, recent_disease, crops)
 
         mandi_summary = ""
         if crops:
             try:
-                first_crop = crops[0]
-                mandi_price = await get_mandi_price_from_db(db, first_crop, location)
-                mandi_summary = f"\nMandi price ({first_crop}): {mandi_price}"
-                mandi_summary = mandi_summary[:200]
+                price = await get_mandi_price_from_db(db, crops[0], location)
+                mandi_summary = f"\nMandi price ({crops[0]}): {price}"[:200]
             except Exception as e:
-                print(f"Failed to fetch mandi price for {farmer_id}: {e}")
+                print(f"[Scheduler] Mandi price failed for {farmer_id}: {e}")
 
         today = datetime.now().strftime("%A, %d %B %Y")
-        spray_instruction = (
+        spray_line = (
             "3. Spray advice (if disease exists)"
             if recent_disease
             else "3. Skip spray advice if there is no disease"
@@ -281,11 +235,10 @@ async def generate_briefing(db, farmer_id: str) -> str:
                         "Keep message SHORT (max 5 bullet points).\n"
                         "Use farmer-friendly language.\n"
                         "Start with a morning greeting.\n"
-                        "Give clear actionable advice.\n"
                         "Include:\n"
                         "1. Weather summary\n"
                         "2. Watering advice\n"
-                        f"{spray_instruction}\n"
+                        f"{spray_line}\n"
                         "4. One clear action for today\n"
                         "End with one clear action only."
                     ),
@@ -296,16 +249,13 @@ async def generate_briefing(db, farmer_id: str) -> str:
                         f"Location: {location}\n"
                         f"Crops: {', '.join(crops)}\n"
                         f"Disease: {recent_disease or 'None'}\n\n"
-                        "Structured weather:\n"
-                        f"Temp: {weather_data['temp']}\u00b0C\n"
-                        f"Humidity: {weather_data['humidity']}%\n"
-                        f"Rain: {weather_data['rain']} mm\n"
+                        f"Temp: {weather_data['temp']}\u00b0C | "
+                        f"Humidity: {weather_data['humidity']}% | "
+                        f"Rain: {weather_data['rain']} mm | "
                         f"Wind: {weather_data['wind']} km/h\n\n"
-                        "Advice:\n"
                         f"Watering: {advice['watering']}\n"
                         f"Spray: {advice['spray']}\n"
                         f"Extra: {advice.get('extra', 'None')}\n"
-                        f"Confidence: {advice.get('confidence', 'None')}\n"
                         f"{mandi_summary}"
                     ),
                 },
@@ -313,56 +263,93 @@ async def generate_briefing(db, farmer_id: str) -> str:
             max_tokens=300,
             temperature=0.2,
         )
-
         return response.choices[0].message.content
 
     except Exception as e:
-        print(f"Error generating briefing for {farmer_id}: {e}")
+        print(f"[Scheduler] generate_briefing error for {farmer_id}: {e}")
         return None
+
+
+# ── Per-farmer task ───────────────────────────────────────────────────────────
 
 
 async def process_farmer(farmer):
     async for db in get_db():
         try:
             briefing = await generate_briefing(db, farmer.phone_number)
-
             if briefing:
-                await send_whatsapp(farmer.phone_number, briefing)
-                print(f"Briefing sent for {farmer.phone_number}")
+                await send_proactive_message(farmer.phone_number, briefing)
+                print(f"[Scheduler] Sent briefing → {farmer.phone_number}")
             else:
-                print(f"No briefing for {farmer.phone_number}")
-            print(f"Farmer processed: {farmer.phone_number}")
-            return
+                print(f"[Scheduler] No briefing for {farmer.phone_number}")
         except Exception as e:
-            print(f"Failed for {farmer.phone_number}: {e}")
-            return
+            print(f"[Scheduler] Failed for {farmer.phone_number}: {e}")
+        return
+
+
+# ── Scheduled jobs ────────────────────────────────────────────────────────────
 
 
 async def send_morning_briefings():
-    print(f"\nStarting briefings - {datetime.now()}")
-
+    print(f"\n[Scheduler] Morning briefings starting — {datetime.now()}")
     async for db in get_db():
         result = await db.execute(select(Farmer))
         farmers = result.scalars().all()
         break
 
     if not farmers:
-        print("No farmers found")
+        print("[Scheduler] No farmers found")
         return
 
-    print(f"Total farmers: {len(farmers)}")
-
-    tasks = []
-    for farmer in farmers:
-        tasks.append(process_farmer(farmer))
+    print(f"[Scheduler] {len(farmers)} farmers to brief")
+    tasks = [process_farmer(f) for f in farmers]
+    for t in tasks:
         await asyncio.sleep(0.2)
-
     await asyncio.gather(*tasks)
+    print("[Scheduler] All briefings done\n")
 
-    print("All briefings sent\n")
+
+async def daily_karnataka_scrape():
+    print(f"[Scheduler] Karnataka scrape starting — {datetime.now()}")
+    try:
+        loop = asyncio.get_event_loop()
+        await loop.run_in_executor(_executor, run_karnataka_scraper)
+        print("[Scheduler] Karnataka scrape done")
+    except Exception as e:
+        print(f"[Scheduler] Karnataka scrape failed: {e}")
 
 
-scheduler = AsyncIOScheduler()
+# ── Follow-up scheduling ──────────────────────────────────────────────────────
+
+
+def schedule_followup(phone: str, farmer_name: str, disease_name: str, bbox_pct: float):
+    followup_date = datetime.now() + timedelta(days=3)
+    job_id = f"followup_{phone}_{int(datetime.now().timestamp())}"
+    scheduler.add_job(
+        _send_followup,
+        trigger="date",
+        run_date=followup_date,
+        args=[phone, farmer_name, disease_name, bbox_pct],
+        id=job_id,
+        replace_existing=True,
+    )
+    print(f"[Scheduler] Follow-up for {phone} on {followup_date.date()}")
+
+
+async def _send_followup(
+    phone: str, farmer_name: str, disease_name: str, bbox_pct: float
+):
+    msg = (
+        f"{farmer_name} bhai, 3 din pehle aapki fasal mein "
+        f"{disease_name} thi ({bbox_pct}% affected).\n"
+        f"Kya dawai laga di? Aur ab kaisa lag raha hai?\n"
+        f"Ek nayi photo bhejein — main dekh leta hoon. \U0001f4f8"
+    )
+    await send_proactive_message(phone, msg)
+    print(f"[Scheduler] Follow-up sent → {phone}")
+
+
+# ── Lifecycle ─────────────────────────────────────────────────────────────────
 
 
 def start_scheduler():
@@ -372,12 +359,19 @@ def start_scheduler():
         id="morning_briefing",
         replace_existing=True,
     )
-
+    scheduler.add_job(
+        daily_karnataka_scrape,
+        CronTrigger(hour=8, minute=20, timezone="Asia/Kolkata"),
+        id="daily_karnataka_scrape",
+        replace_existing=True,
+    )
     scheduler.start()
-    print("Scheduler started (8:00 AM IST)")
+    print("[Scheduler] Started. Jobs:")
+    for job in scheduler.get_jobs():
+        print(f"  {job.id} → {job.next_run_time}")
 
 
 def stop_scheduler():
     if scheduler.running:
         scheduler.shutdown()
-        print("Scheduler stopped")
+        print("[Scheduler] Stopped")

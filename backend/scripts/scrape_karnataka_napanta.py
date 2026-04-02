@@ -2,7 +2,9 @@ import re
 import time
 import os
 import sys
-from datetime import datetime, UTC
+from datetime import datetime, timezone
+
+UTC = timezone.utc
 from urllib.parse import urljoin, urlparse
 
 import requests
@@ -26,11 +28,9 @@ SEED_URLS = [
     "https://www.napanta.com/market-price/karnataka/koppal/kustagi",
 ]
 
-HEADERS = {
-    "User-Agent": "Mozilla/5.0"
-}
+HEADERS = {"User-Agent": "Mozilla/5.0"}
 
-MAX_PAGES = 10
+MAX_PAGES = 50
 REQUEST_DELAY = 1.0
 
 
@@ -120,7 +120,10 @@ def clean_tokens(lines):
             continue
         if "price trend" in lower:
             continue
-        if "commodity amc market variety maximum price average price minimum price last updated on" in lower:
+        if (
+            "commodity amc market variety maximum price average price minimum price last updated on"
+            in lower
+        ):
             continue
         if "browse all categories" in lower:
             continue
@@ -144,7 +147,9 @@ def parse_market_page(url: str):
     district = extract_district_from_url(url)
 
     text = soup.get_text("\n", strip=True)
-    lines = [normalize_space(line) for line in text.splitlines() if normalize_space(line)]
+    lines = [
+        normalize_space(line) for line in text.splitlines() if normalize_space(line)
+    ]
     tokens = clean_tokens(lines)
 
     rows = []
@@ -153,16 +158,16 @@ def parse_market_page(url: str):
     while i <= len(tokens) - 7:
         # actual token order from your debug output:
         # commodity, market, variety, ₹max, ₹avg, ₹min, date
-        t0, t1, t2, t3, t4, t5, t6 = tokens[i:i+7]
+        t0, t1, t2, t3, t4, t5, t6 = tokens[i : i + 7]
 
         if (
-            is_text_token(t0) and
-            is_text_token(t1) and
-            is_text_token(t2) and
-            is_price_token(t3) and
-            is_price_token(t4) and
-            is_price_token(t5) and
-            is_date_token(t6)
+            is_text_token(t0)
+            and is_text_token(t1)
+            and is_text_token(t2)
+            and is_price_token(t3)
+            and is_price_token(t4)
+            and is_price_token(t5)
+            and is_date_token(t6)
         ):
             row = {
                 "state": "Karnataka",
@@ -203,19 +208,21 @@ def upsert_rows(db, rows):
     inserted = 0
 
     for row in rows:
-        stmt = insert(MandiPrice).values(
-            state=row["state"],
-            district=row["district"],
-            market=row["market"],
-            commodity=row["commodity"],
-            variety=row["variety"],
-            min_price=row["min_price"],
-            max_price=row["max_price"],
-            modal_price=row["modal_price"],
-            arrival_date=row["arrival_date"],
-            fetched_at=row["fetched_at"],
-        ).on_conflict_do_nothing(
-            constraint="uq_market_commodity_date"
+        stmt = (
+            insert(MandiPrice)
+            .values(
+                state=row["state"],
+                district=row["district"],
+                market=row["market"],
+                commodity=row["commodity"],
+                variety=row["variety"],
+                min_price=row["min_price"],
+                max_price=row["max_price"],
+                modal_price=row["modal_price"],
+                arrival_date=row["arrival_date"],
+                fetched_at=row["fetched_at"],
+            )
+            .on_conflict_do_nothing(constraint="uq_market_commodity_date")
         )
 
         db.execute(stmt)
