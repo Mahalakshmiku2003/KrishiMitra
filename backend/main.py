@@ -13,7 +13,7 @@ from routes.progression import router as progression_router
 from routes.soil import router as soil_router
 from routes.market import router as market_router
 from routes.whatsapp import router as routes_whatsapp_router
-from scheduler import scheduler
+from scheduler import scheduler, start_scheduler
 from services.db import Base, engine
 from services.price_fetcher import run_daily_fetch
 
@@ -42,18 +42,28 @@ app.include_router(market_router, prefix="/market", tags=["Market"])
 app.include_router(routes_whatsapp_router)
 
 
+from concurrent.futures import ThreadPoolExecutor
+import asyncio
+
+_executor = ThreadPoolExecutor(max_workers=1)
+
 @app.on_event("startup")
 async def startup() -> None:
+    loop = asyncio.get_event_loop()
+    
+    # Wrap sync fetch in executor so it doesn't block
+    def fetch_wrapper():
+        run_daily_fetch()
+    
     scheduler.add_job(
-        run_daily_fetch,
+        lambda: loop.run_in_executor(_executor, fetch_wrapper),
         trigger="cron",
         hour=0,
         minute=0,
         id="daily_price_fetch",
         replace_existing=True,
     )
-    if not scheduler.running:
-        scheduler.start()
+    start_scheduler()
 
 
 @app.on_event("shutdown")

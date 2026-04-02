@@ -10,11 +10,11 @@ from agent.tools import (
     get_disease_progression,
     get_nearby_mandis,
 )
-
+from services.location_state import _pending_location
 load_dotenv(os.path.join(os.path.dirname(__file__), ".env"))
 # Fallback to backend/.env when running from project root.
 load_dotenv(os.path.join(os.path.dirname(os.path.dirname(__file__)), ".env"))
-
+from farmer_store import get_farmer_location
 client = AsyncGroq(api_key=os.getenv("GROQ_API_KEY"))
 
 memory_store = {}
@@ -67,7 +67,6 @@ async def process_message(
     farmer_id: str, message: str, disease_result: dict = None
 ) -> str:
     try:
-        # Build context from disease result
         if disease_result and not disease_result.get("error"):
             disease = disease_result.get("disease", "")
             conf = disease_result.get("confidence", "")
@@ -96,12 +95,31 @@ async def process_message(
             + [{"role": "user", "content": message}]
         )
 
-        # Check if tools needed
-        tool_result = await use_tools(message, disease_result)
-        if tool_result:
-            messages.append(
-                {"role": "user", "content": f"Additional data:\n{tool_result}"}
+        tool_result = await use_tools(message, disease_result, farmer_id)
+
+        # Sentinel: location needed
+        if tool_result == "__LOCATION_REQUESTED__":
+            msg_lower = message.lower()
+            explicit_crop = None
+            for c in ["tomato","potato","onion","wheat","rice","cotton","corn","grape","pepper","mango","banana"]:
+                if c in msg_lower:
+                    explicit_crop = c
+                    break
+            crop_str = f"*{explicit_crop}*" if explicit_crop else "mandis"
+            return (
+                f"Aapki location save karni hai taaki agle baar seedha jawab de sakoon!\n"
+                f"Please apni *WhatsApp location share karein* 📍\n\n"
+                f"(Attachment > Location > Send Current Location)\n\n"
+                f"Koi aur madad chahiye? 🌾"
             )
+
+        # Sentinel: mandi result already computed
+        if tool_result and tool_result.startswith("__DIRECT_REPLY__"):
+            return tool_result.replace("__DIRECT_REPLY__", "", 1)
+
+        # Normal LLM flow
+        if tool_result:
+            messages.append({"role": "user", "content": f"Additional data:\n{tool_result}"})
 
         response = await client.chat.completions.create(
             model="llama-3.3-70b-versatile",
@@ -119,7 +137,8 @@ async def process_message(
         return f"Sorry, please try again. Error: {str(e)}"
 
 
-async def use_tools(message: str, disease_result: dict = None) -> str:
+# Pass farmer_id into use_tools
+async def use_tools(message: str, disease_result: dict = None, farmer_id: str = None) -> str:
     msg_lower = message.lower()
     results = []
 
@@ -131,29 +150,40 @@ async def use_tools(message: str, disease_result: dict = None) -> str:
             results.append(get_disease_progression.run(disease))
 
     # Weather tool
-    if any(
-        w in msg_lower
-        for w in ["weather", "rain", "spray", "mausam", "barish", "humid"]
-    ):
+    if any(w in msg_lower for w in ["weather", "rain", "spray", "mausam", "barish", "humid"]):
         location = extract_location(message)
         results.append(get_weather.run(location))
 
-    # Price tool
-    if any(
-        w in msg_lower for w in ["price", "rate", "mandi", "bhav", "sell", "market"]
-    ):
+    # Price tool — keep this separate from nearby
+    if any(w in msg_lower for w in ["price", "rate", "bhav"]):
         crop = extract_crop(message)
         results.append(get_mandi_price.run(crop))
 
-    # Nearby mandis
-    if any(w in msg_lower for w in ["nearby", "nearest", "closest", "paas", "kahan"]):
-        location = extract_location(message)
-        results.append(get_nearby_mandis.run(location))
+    # Nearby mandi block — replace entirely
+    if any(w in msg_lower for w in ["nearby", "nearest", "closest", "paas", "kahan", "mandi", "sell", "market"]):
+        explicit_crop = None
+        for c in ["tomato","potato","onion","wheat","rice","cotton","corn","grape","pepper","mango","banana"]:
+            if c in msg_lower:
+                explicit_crop = c
+                break
+
+        saved = get_farmer_location(farmer_id)
+        if saved:
+            from services.whatsapp_service import handle_location_for_mandi
+            mandi_reply = await handle_location_for_mandi(
+                phone=farmer_id,
+                lat=saved["lat"],
+                lng=saved["lng"],
+                commodity=explicit_crop,
+            )
+            return f"__DIRECT_REPLY__{mandi_reply}"  # ← inside if saved
+
+        # No saved location — ask for it
+        _pending_location[farmer_id] = {"waiting": "mandi", "commodity": explicit_crop}
+        return "__LOCATION_REQUESTED__"
 
     # Schemes
-    if any(
-        w in msg_lower for w in ["scheme", "subsidy", "insurance", "yojana", "sarkar"]
-    ):
+    if any(w in msg_lower for w in ["scheme", "subsidy", "insurance", "yojana", "sarkar"]):
         results.append(get_govt_schemes.run("India"))
 
     return "\n\n".join(results) if results else ""

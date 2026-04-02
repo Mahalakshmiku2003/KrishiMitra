@@ -163,3 +163,34 @@ def get_last_detection(phone: str) -> dict:
         print(f"[FarmerStore] get_last_detection error: {e}")
 
     return {"affected_pct": 20.0, "bbox_pct": 20.0, "severity": "unknown"}
+
+
+# Add these two functions to farmer_store.py
+
+def get_farmer_location(phone: str) -> dict | None:
+    """Returns saved lat/lng or None if not set yet."""
+    with SessionLocal() as db:
+        result = db.execute(
+            text("SELECT lat, lng FROM farmers WHERE phone = :phone"),
+            {"phone": phone}
+        ).fetchone()
+    
+    if result and result[0] is not None and result[1] is not None:
+        return {"lat": result[0], "lng": result[1]}
+    return None
+
+
+def save_farmer_location(phone: str, lat: float, lng: float):
+    """Save farmer's home location permanently."""
+    with SessionLocal() as db:
+        db.execute(
+            text("""
+                INSERT INTO farmers (phone, lat, lng)
+                VALUES (:phone, :lat, :lng)
+                ON CONFLICT (phone) DO UPDATE
+                SET lat = :lat, lng = :lng, last_seen = NOW()
+            """),
+            {"phone": phone, "lat": lat, "lng": lng}
+        )
+        db.commit()
+    print(f"[FarmerStore] Saved location for {phone}: {lat}, {lng}")

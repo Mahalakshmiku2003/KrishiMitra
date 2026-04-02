@@ -6,25 +6,23 @@ from services.whatsapp_service import handle_incoming_message
 router = APIRouter()
 
 
+# routes/whatsapp.py — add Latitude and Longitude to Form params
 @router.post("/webhook/whatsapp")
 async def whatsapp_webhook(
-    From:                str = Form(...),
-    Body:                str = Form(""),
-    NumMedia:            str = Form("0"),
-    MediaUrl0:           str = Form(None),
-    MediaContentType0:   str = Form(None),
+    From:              str = Form(...),
+    Body:              str = Form(""),
+    NumMedia:          str = Form("0"),
+    MediaUrl0:         str = Form(None),
+    MediaContentType0: str = Form(None),
+    Latitude:          str = Form(None),   # NEW
+    Longitude:         str = Form(None),   # NEW
+    Address:           str = Form(None),   # NEW
 ):
-    """
-    Twilio POSTs here every time a farmer sends a WhatsApp message.
-    Must respond with TwiML XML within 15 seconds.
-    Set this URL in Twilio sandbox: https://your-ngrok-url/webhook/whatsapp
-    """
     form_data = {
-        "From":              From,
-        "Body":              Body,
-        "NumMedia":          NumMedia,
-        "MediaUrl0":         MediaUrl0,
-        "MediaContentType0": MediaContentType0,
+        "From": From, "Body": Body,
+        "NumMedia": NumMedia,
+        "MediaUrl0": MediaUrl0, "MediaContentType0": MediaContentType0,
+        "Latitude": Latitude, "Longitude": Longitude, "Address": Address,
     }
     twiml_xml = await handle_incoming_message(form_data)
     return Response(content=twiml_xml, media_type="text/xml")

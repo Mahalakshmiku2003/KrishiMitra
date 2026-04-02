@@ -1,38 +1,42 @@
-{
-  "Azadpur, Delhi": { "lat": 28.7196, "lng": 77.1836, "state": "Delhi" },
-  "Vashi, Mumbai": { "lat": 19.0771, "lng": 72.9988, "state": "Maharashtra" },
-  "Pune": { "lat": 18.5204, "lng": 73.8567, "state": "Maharashtra" },
-  "Nashik": { "lat": 19.9975, "lng": 73.7898, "state": "Maharashtra" },
-  "Nagpur": { "lat": 21.1458, "lng": 79.0882, "state": "Maharashtra" },
-  "Bengaluru": { "lat": 12.9716, "lng": 77.5946, "state": "Karnataka" },
-  "Mysuru": { "lat": 12.2958, "lng": 76.6394, "state": "Karnataka" },
-  "Hubli": { "lat": 15.3647, "lng": 75.1240, "state": "Karnataka" },
-  "Chennai": { "lat": 13.0827, "lng": 80.2707, "state": "Tamil Nadu" },
-  "Coimbatore": { "lat": 11.0168, "lng": 76.9558, "state": "Tamil Nadu" },
-  "Madurai": { "lat": 9.9252, "lng": 78.1198, "state": "Tamil Nadu" },
-  "Hyderabad": { "lat": 17.3850, "lng": 78.4867, "state": "Telangana" },
-  "Warangal": { "lat": 17.9689, "lng": 79.5941, "state": "Telangana" },
-  "Ahmedabad": { "lat": 23.0225, "lng": 72.5714, "state": "Gujarat" },
-  "Surat": { "lat": 21.1702, "lng": 72.8311, "state": "Gujarat" },
-  "Rajkot": { "lat": 22.3039, "lng": 70.8022, "state": "Gujarat" },
-  "Kolkata": { "lat": 22.5726, "lng": 88.3639, "state": "West Bengal" },
-  "Siliguri": { "lat": 26.7271, "lng": 88.3953, "state": "West Bengal" },
-  "Patna": { "lat": 25.5941, "lng": 85.1376, "state": "Bihar" },
-  "Lucknow": { "lat": 26.8467, "lng": 80.9462, "state": "Uttar Pradesh" },
-  "Kanpur": { "lat": 26.4499, "lng": 80.3319, "state": "Uttar Pradesh" },
-  "Agra": { "lat": 27.1767, "lng": 78.0081, "state": "Uttar Pradesh" },
-  "Varanasi": { "lat": 25.3176, "lng": 82.9739, "state": "Uttar Pradesh" },
-  "Jaipur": { "lat": 26.9124, "lng": 75.7873, "state": "Rajasthan" },
-  "Jodhpur": { "lat": 26.2389, "lng": 73.0243, "state": "Rajasthan" },
-  "Chandigarh": { "lat": 30.7333, "lng": 76.7794, "state": "Punjab" },
-  "Ludhiana": { "lat": 30.9010, "lng": 75.8573, "state": "Punjab" },
-  "Amritsar": { "lat": 31.6340, "lng": 74.8723, "state": "Punjab" },
-  "Bhopal": { "lat": 23.2599, "lng": 77.4126, "state": "Madhya Pradesh" },
-  "Indore": { "lat": 22.7196, "lng": 75.8577, "state": "Madhya Pradesh" },
-  "Guwahati": { "lat": 26.1445, "lng": 91.7362, "state": "Assam" },
-  "Bhubaneswar": { "lat": 20.2961, "lng": 85.8245, "state": "Odisha" },
-  "Raipur": { "lat": 21.2514, "lng": 81.6296, "state": "Chhattisgarh" },
-  "Ranchi": { "lat": 23.3441, "lng": 85.3096, "state": "Jharkhand" },
-  "Thiruvananthapuram": { "lat": 8.5241, "lng": 76.9366, "state": "Kerala" },
-  "Kochi": { "lat": 9.9312, "lng": 76.2673, "state": "Kerala" }
-}
+[
+  {
+    "market": "Bangalore",
+    "district": "Bangalore",
+    "state": "Karnataka",
+    "lat": 12.9767936,
+    "lng": 77.590082,
+    "resolved_address": "Bengaluru, Bangalore North, Bengaluru Urban, Karnataka, India"
+  },
+  {
+    "market": "Hoskote",
+    "district": "Bangalore",
+    "state": "Karnataka",
+    "lat": 13.0318443,
+    "lng": 77.7618779,
+    "resolved_address": "Sobha Amethyst & Adamus, Off Whitefiled Hoskote Main Road, Kannamangala, Bengaluru, Bangalore East, Bengaluru Urban, Karnataka, 560067, India"
+  },
+  {
+    "market": "Kanakapura",
+    "district": "Bangalore",
+    "state": "Karnataka",
+    "lat": 12.8844172,
+    "lng": 77.5527662,
+    "resolved_address": "Kanakapura Road, Narayana Nagara, Vasanthapura, Bengaluru South City Corporation, Bengaluru, Bangalore South, Bengaluru Urban, Karnataka, 560062, India"
+  },
+  {
+    "market": "Bellary",
+    "district": "Bellary",
+    "state": "Karnataka",
+    "lat": 15.1622026,
+    "lng": 76.8815329,
+    "resolved_address": "Bellary Airport, Hosapete Road, Cantonment, Ballari, Bellary taluk, Ballari, Karnataka, 583275, India"
+  },
+  {
+    "market": "Kustagi",
+    "district": "Koppal",
+    "state": "Karnataka",
+    "lat": 15.7571579,
+    "lng": 76.190682,
+    "resolved_address": "Kushtagi, Kushtagi taluk, Koppal, Karnataka, 583277, India"
+  }
+]

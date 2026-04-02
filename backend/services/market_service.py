@@ -1,4 +1,7 @@
+# services/market_service.py
+
 import os
+import json
 from math import radians, sin, cos, sqrt, atan2
 from sqlalchemy.orm import Session
 from sqlalchemy import func, desc
@@ -6,17 +9,12 @@ from models.price import MandiPrice
 
 TRANSPORT_COST_PER_KM = 2.5
 
+COORDS_FILE = os.path.join(
+    os.path.dirname(os.path.dirname(__file__)),
+    "data",
+    "mandi_coordinates.json"
+)
 
-def haversine_distance(lat1, lng1, lat2, lng2) -> float:
-    R    = 6371
-    lat1, lng1, lat2, lng2 = map(radians, [lat1, lng1, lat2, lng2])
-    dlat = lat2 - lat1
-    dlng = lng2 - lng1
-    a    = sin(dlat/2)**2 + cos(lat1) * cos(lat2) * sin(dlng/2)**2
-    return R * 2 * atan2(sqrt(a), sqrt(1 - a))
-
-
-# State centroid coordinates
 STATE_COORDS = {
     "Andhra Pradesh":    {"lat": 15.9129, "lng": 79.7400},
     "Assam":             {"lat": 26.2006, "lng": 92.9376},
@@ -45,12 +43,41 @@ STATE_COORDS = {
 }
 
 
+def haversine_distance(lat1, lng1, lat2, lng2) -> float:
+    R = 6371
+    lat1, lng1, lat2, lng2 = map(radians, [lat1, lng1, lat2, lng2])
+    dlat = lat2 - lat1
+    dlng = lng2 - lng1
+    a = sin(dlat / 2) ** 2 + cos(lat1) * cos(lat2) * sin(dlng / 2) ** 2
+    return R * 2 * atan2(sqrt(a), sqrt(1 - a))
+
+
+def load_mandi_coordinates() -> list:
+    if not os.path.exists(COORDS_FILE):
+        return []
+
+    with open(COORDS_FILE, "r", encoding="utf-8") as f:
+        return json.load(f)
+
+
+def get_market_coordinates(market: str, district: str, state: str):
+    data = load_mandi_coordinates()
+
+    for row in data:
+        if (
+            row["market"].strip().lower() == market.strip().lower()
+            and row["district"].strip().lower() == district.strip().lower()
+            and row["state"].strip().lower() == state.strip().lower()
+        ):
+            return {
+                "lat": row["lat"],
+                "lng": row["lng"]
+            }
+
+    return None
+
+
 def get_latest_prices(commodity: str, state: str, db: Session) -> list:
-    """
-    Returns latest available price per market for a commodity in a state.
-    Uses DB — shows most recent data even if not updated today.
-    """
-    # Subquery — get latest arrival_date per market for this commodity+state
     subq = (
         db.query(
             MandiPrice.market,
@@ -64,11 +91,13 @@ def get_latest_prices(commodity: str, state: str, db: Session) -> list:
         .subquery()
     )
 
-    # Join to get full records for those latest dates
     results = (
         db.query(MandiPrice)
-        .join(subq, (MandiPrice.market == subq.c.market) &
-                    (MandiPrice.arrival_date == subq.c.latest_date))
+        .join(
+            subq,
+            (MandiPrice.market == subq.c.market) &
+            (MandiPrice.arrival_date == subq.c.latest_date)
+        )
         .filter(
             func.lower(MandiPrice.commodity) == commodity.lower(),
             func.lower(MandiPrice.state) == state.lower()
@@ -81,9 +110,6 @@ def get_latest_prices(commodity: str, state: str, db: Session) -> list:
 
 
 def get_all_latest_prices(commodity: str, db: Session) -> list:
-    """
-    Returns latest available price per market across ALL states.
-    """
     subq = (
         db.query(
             MandiPrice.market,
@@ -97,10 +123,12 @@ def get_all_latest_prices(commodity: str, db: Session) -> list:
 
     results = (
         db.query(MandiPrice)
-        .join(subq,
+        .join(
+            subq,
             (MandiPrice.market == subq.c.market) &
-            (MandiPrice.state  == subq.c.state)  &
-            (MandiPrice.arrival_date == subq.c.latest_date))
+            (MandiPrice.state == subq.c.state) &
+            (MandiPrice.arrival_date == subq.c.latest_date)
+        )
         .filter(func.lower(MandiPrice.commodity) == commodity.lower())
         .order_by(desc(MandiPrice.arrival_date))
         .all()
@@ -108,6 +136,84 @@ def get_all_latest_prices(commodity: str, db: Session) -> list:
 
     return [_to_dict(r) for r in results]
 
+
+def get_price_history(commodity: str, market: str, db: Session) -> list:
+    results = (
+        db.query(MandiPrice)
+        .filter(
+            func.lower(MandiPrice.commodity) == commodity.lower(),
+            func.lower(MandiPrice.market) == market.lower()
+        )
+        .order_by(MandiPrice.arrival_date)
+        .all()
+    )
+    return [_to_dict(r) for r in results]
+
+
+def karnataka_rows_exist(commodity: str, db: Session) -> bool:
+    row = (
+        db.query(MandiPrice.id)
+        .filter(
+            func.lower(MandiPrice.state) == "karnataka",
+            func.lower(MandiPrice.commodity) == commodity.lower()
+        )
+        .first()
+    )
+    return row is not None
+
+# services/market_service.py — add this function
+
+def find_nearest_from_json(farmer_lat: float, farmer_lng: float, top_n: int = 5) -> list:
+    """Use mandi_coordinates.json directly — no DB needed."""
+    data = load_mandi_coordinates()  # already exists in your code
+    results = []
+
+    for row in data:
+        dist = haversine_distance(farmer_lat, farmer_lng, row["lat"], row["lng"])
+        results.append({
+            "market":   row["market"],
+            "district": row.get("district", ""),
+            "state":    row.get("state", ""),
+            "lat":      row["lat"],
+            "lng":      row["lng"],
+            "distance_km": round(dist, 1),
+        })
+
+    results.sort(key=lambda x: x["distance_km"])
+    return results[:top_n]
+
+
+def find_best_mandi_for_commodity(
+    farmer_lat: float, farmer_lng: float,
+    commodity: str, radius_km: float, top_n: int, db
+) -> list:
+    """DB prices + mandi_coordinates.json coords — no state centroid fallback."""
+    all_prices = get_all_latest_prices(commodity, db)
+    results = []
+
+    for record in all_prices:
+        coords = get_market_coordinates(
+            market=record["market"].strip(),
+            district=record["district"].strip(),
+            state=record["state"].strip(),
+        )
+        if not coords:
+            continue  # skip if no exact coords — no centroid fallback
+
+        dist = haversine_distance(farmer_lat, farmer_lng, coords["lat"], coords["lng"])
+        if dist > radius_km:
+            continue
+
+        transport = round(dist * TRANSPORT_COST_PER_KM, 2)
+        results.append({
+            **record,
+            "distance_km":    round(dist, 1),
+            "transport_cost": transport,
+            "net_price":      round(record["modal_price"] - transport, 2),
+        })
+
+    results.sort(key=lambda x: x["net_price"], reverse=True)
+    return results[:top_n]
 
 def find_nearby_mandis(
     farmer_lat: float,
@@ -117,67 +223,63 @@ def find_nearby_mandis(
     top_n: int,
     db: Session,
 ) -> list:
-    """
-    Find best mandis near farmer using state coordinates.
-    Queries DB for latest prices, calculates net price after transport.
-    """
     all_prices = get_all_latest_prices(commodity, db)
-    results    = []
+    results = []
 
     for record in all_prices:
-        state  = record["state"].strip()
-        coords = None
+        state = record["state"].strip()
+        district = record["district"].strip()
+        market = record["market"].strip()
 
-        for state_name, state_coords in STATE_COORDS.items():
-            if state.lower() == state_name.lower():
-                coords = state_coords
-                break
+        # 1. First try exact market coordinates from JSON
+        coords = get_market_coordinates(
+            market=market,
+            district=district,
+            state=state
+        )
+
+        # 2. If exact market coords not found, fall back to state centroid
+        if not coords:
+            for state_name, state_coords in STATE_COORDS.items():
+                if state.lower() == state_name.lower():
+                    coords = state_coords
+                    break
 
         if not coords:
             continue
 
-        distance       = haversine_distance(farmer_lat, farmer_lng,
-                                            coords["lat"], coords["lng"])
+        distance = haversine_distance(
+            farmer_lat, farmer_lng, coords["lat"], coords["lng"]
+        )
+
         if distance > radius_km:
             continue
 
         transport_cost = round(distance * TRANSPORT_COST_PER_KM, 2)
-        net_price      = round(record["modal_price"] - transport_cost, 2)
+        net_price = round(record["modal_price"] - transport_cost, 2)
 
         results.append({
             **record,
-            "distance_km":    round(distance, 1),
+            "distance_km": round(distance, 1),
             "transport_cost": transport_cost,
-            "net_price":      net_price,
+            "net_price": net_price,
+            "market_lat": coords["lat"],
+            "market_lng": coords["lng"],
         })
 
     results.sort(key=lambda x: x["net_price"], reverse=True)
     return results[:top_n]
 
 
-def get_price_history(commodity: str, market: str, db: Session) -> list:
-    """Returns all stored historical prices for a commodity+market."""
-    results = (
-        db.query(MandiPrice)
-        .filter(
-            func.lower(MandiPrice.commodity) == commodity.lower(),
-            func.lower(MandiPrice.market)    == market.lower()
-        )
-        .order_by(MandiPrice.arrival_date)
-        .all()
-    )
-    return [_to_dict(r) for r in results]
-
-
 def _to_dict(r: MandiPrice) -> dict:
     return {
-        "state":        r.state,
-        "district":     r.district,
-        "market":       r.market,
-        "commodity":    r.commodity,
-        "variety":      r.variety,
-        "min_price":    r.min_price,
-        "max_price":    r.max_price,
-        "modal_price":  r.modal_price,
-        "date":         str(r.arrival_date),
+        "state": r.state,
+        "district": r.district,
+        "market": r.market,
+        "commodity": r.commodity,
+        "variety": r.variety,
+        "min_price": float(r.min_price) if r.min_price is not None else 0,
+        "max_price": float(r.max_price) if r.max_price is not None else 0,
+        "modal_price": float(r.modal_price) if r.modal_price is not None else 0,
+        "date": str(r.arrival_date),
     }

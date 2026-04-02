@@ -1,7 +1,7 @@
 import os, random
 from datetime import datetime, timedelta
 from sqlalchemy.orm import Session
-from services.market_service import get_price_history
+from services.market_service import get_price_history, get_all_latest_prices
 
 SEASONAL_TRENDS = {
     "Tomato":  [1.2, 1.1, 0.9, 0.8, 0.9, 1.1, 1.3, 1.2, 1.0, 0.9, 0.8, 1.0],

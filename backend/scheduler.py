@@ -1,24 +1,22 @@
 """
-scheduler.py  ← new file in backend/
-Handles all scheduled/proactive messaging:
-  - Daily 7am morning briefing to all farmers
-  - 3-day follow-up after a disease diagnosis
+scheduler.py
 """
 
+import asyncio
 from datetime import datetime, timedelta
+from concurrent.futures import ThreadPoolExecutor
 from apscheduler.schedulers.asyncio import AsyncIOScheduler
+
 from services.whatsapp_service import send_proactive_message
 from services.market_service import get_latest_prices
 from services.db import SessionLocal
+from scripts.scrape_karnataka_napanta import run as run_karnataka_scraper
 
 scheduler = AsyncIOScheduler(timezone="Asia/Kolkata")
+_executor = ThreadPoolExecutor(max_workers=1)
 
 
-# ── Morning briefing — 7am every day ───────────────────────────────────────────
-
-@scheduler.scheduled_job("cron", hour=7, minute=0)
 async def morning_briefing():
-    """Send daily farm update to every registered farmer."""
     print(f"[Scheduler] Running morning briefing — {datetime.now()}")
     farmers = _get_all_farmers()
 
@@ -28,16 +26,16 @@ async def morning_briefing():
             location = farmer.get("location", "India")
             crops    = farmer.get("crops", [])
 
-            # Build price snippet for farmer's first crop
             price_line = ""
             if crops:
                 crop = crops[0]
-                db   = SessionLocal()
-                # Derive state from location (simple — use location as state name)
-                prices = get_latest_prices(crop, location, db)
-                db.close()
+                db = SessionLocal()
+                try:
+                    prices = get_latest_prices(crop, location, db)
+                finally:
+                    db.close()
                 if prices:
-                    p          = prices[0]
+                    p = prices[0]
                     price_line = f"{crop}: ₹{p['modal_price']}/quintal at {p['market']}."
                 else:
                     price_line = f"Aaj {crop} ka bhav fetch ho raha hai."
@@ -56,20 +54,19 @@ async def morning_briefing():
     print(f"[Scheduler] Morning briefing done. Sent to {len(farmers)} farmers.")
 
 
-# ── 3-day follow-up — scheduled at diagnosis time ──────────────────────────────
+async def daily_karnataka_scrape():
+    print(f"[Scheduler] Running Karnataka scrape — {datetime.now()}")
+    try:
+        loop = asyncio.get_event_loop()
+        await loop.run_in_executor(_executor, run_karnataka_scraper)
+        print("[Scheduler] Karnataka scrape completed.")
+    except Exception as e:
+        print(f"[Scheduler] Karnataka scrape failed: {e}")
+
 
 def schedule_followup(phone: str, farmer_name: str, disease_name: str, bbox_pct: float):
-    """
-    Call this right after a disease is diagnosed.
-    Schedules a WhatsApp follow-up message 3 days later.
-
-    Usage in agent.py or tools.py after a successful diagnosis:
-        from scheduler import schedule_followup
-        schedule_followup(phone, farmer['name'], disease_name, bbox_pct)
-    """
     followup_date = datetime.now() + timedelta(days=3)
-    job_id        = f"followup_{phone}_{int(datetime.now().timestamp())}"
-
+    job_id = f"followup_{phone}_{int(datetime.now().timestamp())}"
     scheduler.add_job(
         _send_followup,
         trigger="date",
@@ -82,7 +79,6 @@ def schedule_followup(phone: str, farmer_name: str, disease_name: str, bbox_pct:
 
 
 async def _send_followup(phone: str, farmer_name: str, disease_name: str, bbox_pct: float):
-    """The actual follow-up message sent 3 days after diagnosis."""
     msg = (
         f"{farmer_name} bhai, 3 din pehle aapki fasal mein "
         f"{disease_name} thi ({bbox_pct}% affected).\n"
@@ -93,10 +89,7 @@ async def _send_followup(phone: str, farmer_name: str, disease_name: str, bbox_p
     print(f"[Scheduler] Follow-up sent to {phone} for {disease_name}")
 
 
-# ── Helper: fetch all farmers from DB ──────────────────────────────────────────
-
 def _get_all_farmers() -> list:
-    """Fetch all farmer records for the morning briefing."""
     from sqlalchemy import text
     with SessionLocal() as db:
         rows = db.execute(
@@ -111,3 +104,31 @@ def _get_all_farmers() -> list:
         }
         for row in rows
     ]
+
+
+def start_scheduler():
+    """Register all jobs then start. Call this from main.py startup."""
+    if scheduler.running:
+        return
+
+    scheduler.add_job(
+        morning_briefing,
+        trigger="cron",
+        hour=7, minute=0,
+        id="morning_briefing_job",
+        replace_existing=True,
+    )
+    scheduler.add_job(
+        daily_karnataka_scrape,
+        trigger="cron",
+        hour=8, minute=20,
+        id="daily_karnataka_scrape",
+        replace_existing=True,
+    )
+
+    scheduler.start()
+
+    print("[Scheduler] Started. Registered jobs:")
+    for job in scheduler.get_jobs():
+        print(f"  {job.id} → next run: {job.next_run_time}")
+
