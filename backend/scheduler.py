@@ -199,7 +199,7 @@ def start_scheduler():
     scheduler.add_job(
         daily_karnataka_scrape,
         trigger="cron",
-        hour=8, minute=20,
+        hour=10, minute=20,
         id="daily_karnataka_scrape",
         replace_existing=True,
     )

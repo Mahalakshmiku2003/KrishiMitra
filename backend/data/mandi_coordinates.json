@@ -1,42 +1,122 @@
 [
-  {
-    "market": "Bangalore",
-    "district": "Bangalore",
-    "state": "Karnataka",
-    "lat": 12.9767936,
-    "lng": 77.590082,
-    "resolved_address": "Bengaluru, Bangalore North, Bengaluru Urban, Karnataka, India"
-  },
-  {
-    "market": "Hoskote",
-    "district": "Bangalore",
-    "state": "Karnataka",
-    "lat": 13.0318443,
-    "lng": 77.7618779,
-    "resolved_address": "Sobha Amethyst & Adamus, Off Whitefiled Hoskote Main Road, Kannamangala, Bengaluru, Bangalore East, Bengaluru Urban, Karnataka, 560067, India"
-  },
-  {
-    "market": "Kanakapura",
-    "district": "Bangalore",
-    "state": "Karnataka",
-    "lat": 12.8844172,
-    "lng": 77.5527662,
-    "resolved_address": "Kanakapura Road, Narayana Nagara, Vasanthapura, Bengaluru South City Corporation, Bengaluru, Bangalore South, Bengaluru Urban, Karnataka, 560062, India"
-  },
-  {
-    "market": "Bellary",
-    "district": "Bellary",
-    "state": "Karnataka",
-    "lat": 15.1622026,
-    "lng": 76.8815329,
-    "resolved_address": "Bellary Airport, Hosapete Road, Cantonment, Ballari, Bellary taluk, Ballari, Karnataka, 583275, India"
-  },
-  {
-    "market": "Kustagi",
-    "district": "Koppal",
-    "state": "Karnataka",
-    "lat": 15.7571579,
-    "lng": 76.190682,
-    "resolved_address": "Kushtagi, Kushtagi taluk, Koppal, Karnataka, 583277, India"
-  }
-]
+    {
+      "market": "Bangalore",
+      "district": "Bangalore",
+      "state": "Karnataka",
+      "lat": 12.9767936,
+      "lng": 77.590082,
+      "resolved_address": "Bengaluru, Bangalore North, Bengaluru Urban, Karnataka, India"
+    },
+    {
+      "market": "Binny Mill (F&V), Bangalore",
+      "district": "Bangalore",
+      "state": "Karnataka",
+      "lat": 12.9655782,
+      "lng": 77.5681771,
+      "resolved_address": "Binny Mill, Doctor TCM Royan Road, Cheluvadi Palya, Bengaluru Central City Corporation, Bengaluru, Bangalore North, Bengaluru Urban, Karnataka, 560023, India"
+    },
+    {
+      "market": "Doddaballa Pur",
+      "district": "Bangalore",
+      "state": "Karnataka",
+      "lat": 12.9767936,
+      "lng": 77.590082,
+      "resolved_address": "Bengaluru, Bangalore North, Bengaluru Urban, Karnataka, India"
+    },
+    {
+      "market": "Hoskote",
+      "district": "Bangalore",
+      "state": "Karnataka",
+      "lat": 13.0318443,
+      "lng": 77.7618779,
+      "resolved_address": "Sobha Amethyst & Adamus, Off Whitefiled Hoskote Main Road, Kannamangala, Bengaluru, Bangalore East, Bengaluru Urban, Karnataka, 560067, India"
+    },
+    {
+      "market": "Kanakapura",
+      "district": "Bangalore",
+      "state": "Karnataka",
+      "lat": 12.8844172,
+      "lng": 77.5527662,
+      "resolved_address": "Kanakapura Road, Narayana Nagara, Vasanthapura, Bengaluru South City Corporation, Bengaluru, Bangalore South, Bengaluru Urban, Karnataka, 560062, India"
+    },
+    {
+      "market": "Belgaum",
+      "district": "Belgaum",
+      "state": "Karnataka",
+      "lat": 15.8593476,
+      "lng": 74.6142405,
+      "resolved_address": "Belgaum Airport, SH20, Balekundri Khurd, Belagavi taluku, Belagavi, Karnataka, 591124, India"
+    },
+    {
+      "market": "Bellary",
+      "district": "Bellary",
+      "state": "Karnataka",
+      "lat": 15.1622026,
+      "lng": 76.8815329,
+      "resolved_address": "Bellary Airport, Kolagallu Road, Cantonment, Ballari, Bellary taluk, Ballari, Karnataka, 583275, India"
+    },
+    {
+      "market": "H.B. Halli",
+      "district": "Bellary",
+      "state": "Karnataka",
+      "lat": 15.1430224,
+      "lng": 76.9173277,
+      "resolved_address": "Ballari, Bellary taluk, Ballari, Karnataka, 583101, India"
+    },
+    {
+      "market": "Hospet",
+      "district": "Bellary",
+      "state": "Karnataka",
+      "lat": 15.2724253,
+      "lng": 76.3884193,
+      "resolved_address": "Hospet City Municipal Office, Bellary - Hubli Road, Amaravati, Hosapete, Hosapete taluk, Vijayanagara, Karnataka, 583200, India"
+    },
+    {
+      "market": "Aurad",
+      "district": "Bidar",
+      "state": "Karnataka",
+      "lat": 18.250166,
+      "lng": 77.4067389,
+      "resolved_address": "Aurad, Aurad taluku, Bidar, Karnataka, 585259, India"
+    },
+    {
+      "market": "Basava Kalayana",
+      "district": "Bidar",
+      "state": "Karnataka",
+      "lat": 18.0207297,
+      "lng": 77.2487204,
+      "resolved_address": "Bidar, Karnataka, India"
+    },
+    {
+      "market": "Kustagi",
+      "district": "Koppal",
+      "state": "Karnataka",
+      "lat": 15.7571579,
+      "lng": 76.190682,
+      "resolved_address": "Kushtagi, Kushtagi taluk, Koppal, Karnataka, 583277, India"
+    },
+    {
+      "market": "Mysore (Bandipalya)",
+      "district": "Mysore",
+      "state": "Karnataka",
+      "lat": 12.2607543,
+      "lng": 76.6574443,
+      "resolved_address": "State Bank of India, NH766, JP Nagar, Bandipalya, Mysuru taluk, Mysuru District, Karnataka, 570004, India"
+    },
+    {
+      "market": "Sagar",
+      "district": "Shimoga",
+      "state": "Karnataka",
+      "lat": 13.9350895,
+      "lng": 75.5617328,
+      "resolved_address": "Sagar Road, Kiadb Auto Complex, Shivamogga, Shivamogga taluk, Shimoga, Karnataka, 577200, India"
+    },
+    {
+      "market": "Sorabha",
+      "district": "Shimoga",
+      "state": "Karnataka",
+      "lat": 14.0556503,
+      "lng": 75.2380553,
+      "resolved_address": "Shimoga, Karnataka, India"
+    }
+  ]

@@ -29,3 +29,28 @@ def distance_km(lat1, lon1, lat2, lon2):
     c = 2 * asin(sqrt(a))
 
     return 6371 * c
+
+import math
+
+def get_direction(lat1, lon1, lat2, lon2):
+    """
+    Returns direction from farmer → outbreak
+    """
+    dlon = math.radians(lon2 - lon1)
+
+    y = math.sin(dlon) * math.cos(math.radians(lat2))
+    x = (
+        math.cos(math.radians(lat1)) * math.sin(math.radians(lat2))
+        - math.sin(math.radians(lat1)) * math.cos(math.radians(lat2)) * math.cos(dlon)
+    )
+
+    bearing = math.degrees(math.atan2(y, x))
+    bearing = (bearing + 360) % 360
+
+    directions = [
+        "North", "North-East", "East", "South-East",
+        "South", "South-West", "West", "North-West"
+    ]
+
+    index = round(bearing / 45) % 8
+    return directions[index]

@@ -2,7 +2,7 @@ from fastapi import APIRouter, Depends
 from sqlalchemy.orm import Session
 from outbreak.service import handle_new_detection
 from services.db import get_db
-
+from sqlalchemy import text  # ← missing this import
 router = APIRouter()
 
 
@@ -13,11 +13,11 @@ async def new_detection(data: dict, db: Session = Depends(get_db)):
     """
 
     # 1️⃣ Save detection
-    db.execute("""
+    db.execute(text("""
         INSERT INTO detections
         (phone, disease_name, crop_type, severity, lat, lng, spread)
         VALUES (:phone, :disease_name, :crop_type, :severity, :lat, :lng, :spread)
-    """, data)
+    """), data)
 
     db.commit()
 

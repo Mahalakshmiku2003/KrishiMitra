@@ -1,11 +1,15 @@
 from services.db import SessionLocal
 from outbreak.service import handle_new_detection
 from sqlalchemy import text
-processed_ids = set()
+from apscheduler.schedulers.asyncio import AsyncIOScheduler
+
+scheduler = AsyncIOScheduler()
+
+def start_scheduler():
+    scheduler.start()
 
 async def check_new_detections():
     db = SessionLocal()
-
     try:
         result = db.execute(text("""
             SELECT * FROM detections
@@ -14,21 +18,13 @@ async def check_new_detections():
             AND processed = false
         """)).mappings().all()
 
+        print(f"🔍 Found {len(result)} unprocessed outbreaks")
+
         for row in result:
-            if row["id"] in processed_ids:
-                continue
-
             print("🔥 Outbreak detected:", row["disease_name"])
+            await handle_new_detection(db, dict(row))
+            db.execute(text("UPDATE detections SET processed = true WHERE id = :id"), {"id": row["id"]})
 
-            detection = dict(row)
-
-            await handle_new_detection(db, detection)
-
-            db.execute(
-                "UPDATE detections SET processed = true WHERE id = :id",
-                {"id": row["id"]}
-               )
-            db.commit()
-
+        db.commit()
     finally:
         db.close()
