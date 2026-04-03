@@ -1,0 +1,232 @@
+<!DOCTYPE html>
+
+<html lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>KrishiMitra - Price Forecast</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;600;700;800&amp;family=Work+Sans:ital,wght@0,400;0,500;0,600;1,400&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script id="tailwind-config">
+      tailwind.config = {
+        darkMode: "class",
+        theme: {
+          extend: {
+            colors: {
+              "secondary-container": "#acf4a4",
+              "on-secondary-container": "#307231",
+              "on-secondary": "#ffffff",
+              "primary-container": "#2e7d32",
+              "primary-fixed-dim": "#88d982",
+              "surface-bright": "#f9f9f9",
+              "on-primary-container": "#cbffc2",
+              "surface-container-highest": "#e2e2e2",
+              "surface-container-low": "#f3f3f3",
+              "on-surface-variant": "#40493d",
+              "secondary-fixed": "#acf4a4",
+              "surface-container-high": "#e8e8e8",
+              "outline-variant": "#bfcaba",
+              "outline": "#707a6c",
+              "on-tertiary-fixed-variant": "#643f00",
+              "on-error-container": "#93000a",
+              "inverse-primary": "#88d982",
+              "secondary-fixed-dim": "#91d78a",
+              "on-primary-fixed-variant": "#005312",
+              "error-container": "#ffdad6",
+              "error": "#ba1a1a",
+              "on-background": "#1a1c1c",
+              "tertiary-container": "#986200",
+              "on-tertiary-container": "#ffeede",
+              "on-tertiary": "#ffffff",
+              "on-primary-fixed": "#002204",
+              "on-primary": "#ffffff",
+              "on-secondary-fixed-variant": "#0c5216",
+              "background": "#f9f9f9",
+              "surface-container-lowest": "#ffffff",
+              "on-surface": "#1a1c1c",
+              "primary": "#0d631b",
+              "inverse-surface": "#2f3131",
+              "primary-fixed": "#a3f69c",
+              "on-error": "#ffffff",
+              "surface-container": "#eeeeee",
+              "surface-tint": "#1b6d24",
+              "tertiary-fixed-dim": "#ffb957",
+              "tertiary-fixed": "#ffddb5",
+              "tertiary": "#774c00",
+              "surface-variant": "#e2e2e2",
+              "surface-dim": "#dadada",
+              "on-tertiary-fixed": "#2a1800",
+              "surface": "#f9f9f9",
+              "on-secondary-fixed": "#002203",
+              "inverse-on-surface": "#f1f1f1",
+              "secondary": "#2a6b2c"
+            },
+            fontFamily: {
+              "headline": ["Manrope"],
+              "body": ["Work Sans"],
+              "label": ["Work Sans"]
+            },
+            borderRadius: {"DEFAULT": "0.25rem", "lg": "0.5rem", "xl": "1rem", "2xl": "1.5rem", "full": "9999px"},
+          },
+        },
+      }
+    </script>
+<style>
+        .material-symbols-outlined {
+            font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+        }
+        .editorial-shadow {
+            box-shadow: 0 8px 24px rgba(26, 28, 28, 0.06);
+        }
+        .chart-container {
+            background-image: 
+                linear-gradient(to right, #e2e2e2 1px, transparent 1px),
+                linear-gradient(to bottom, #e2e2e2 1px, transparent 1px);
+            background-size: 40px 40px;
+        }
+    </style>
+<style>
+    body {
+      min-height: max(884px, 100dvh);
+    }
+  </style>
+  </head>
+<body class="bg-background font-body text-on-surface antialiased min-h-screen pb-32">
+<!-- TopAppBar -->
+<header class="bg-white dark:bg-zinc-950 flex items-center px-4 py-3 w-full sticky top-0 z-50">
+<div class="flex items-center gap-4">
+<button class="active:scale-95 duration-150 p-1 hover:bg-zinc-100 dark:hover:bg-zinc-800 transition-colors rounded-full">
+<span class="material-symbols-outlined text-green-800 dark:text-green-500">arrow_back</span>
+</button>
+<h1 class="text-xl font-manrope tracking-tight font-bold text-green-900 dark:text-green-100">Price Forecast</h1>
+</div>
+</header>
+<main class="px-4 mt-6 flex flex-col gap-6">
+<!-- Input Card -->
+<section class="bg-surface-container-lowest rounded-2xl p-6 editorial-shadow border border-outline-variant/10">
+<div class="flex flex-col gap-5">
+<div class="flex flex-col gap-1.5">
+<label class="text-[10px] font-label font-semibold uppercase tracking-widest text-on-surface-variant px-1">Crop Name</label>
+<div class="flex items-center bg-surface-container-low rounded-xl px-4 py-3 group focus-within:bg-primary-container/5 transition-colors">
+<span class="material-symbols-outlined text-outline mr-3">eco</span>
+<input class="bg-transparent border-none p-0 focus:ring-0 w-full font-medium text-on-surface" type="text" value="Tomato"/>
+</div>
+</div>
+<div class="flex flex-col gap-1.5">
+<label class="text-[10px] font-label font-semibold uppercase tracking-widest text-on-surface-variant px-1">Market Name</label>
+<div class="flex items-center bg-surface-container-low rounded-xl px-4 py-3 group focus-within:bg-primary-container/5 transition-colors">
+<span class="material-symbols-outlined text-outline mr-3">location_on</span>
+<input class="bg-transparent border-none p-0 focus:ring-0 w-full font-medium text-on-surface" type="text" value="Nashik"/>
+</div>
+</div>
+<button class="w-full bg-primary-container text-on-primary py-4 rounded-full font-headline font-bold text-lg active:scale-[0.98] transition-all shadow-lg shadow-primary/20">
+                    Get Forecast
+                </button>
+</div>
+</section>
+<!-- Summary Stats Row -->
+<section class="grid grid-cols-3 gap-3">
+<div class="bg-surface-container-lowest rounded-xl p-4 editorial-shadow border border-outline-variant/10 text-center">
+<p class="text-[10px] font-label font-semibold text-outline uppercase tracking-wider mb-1">TODAY</p>
+<p class="font-headline font-extrabold text-lg text-on-surface">₹1,228</p>
+</div>
+<div class="bg-surface-container-lowest rounded-xl p-4 editorial-shadow border border-outline-variant/10 text-center">
+<p class="text-[10px] font-label font-semibold text-outline uppercase tracking-wider mb-1">DAY 7</p>
+<p class="font-headline font-extrabold text-lg text-primary">₹1,278</p>
+</div>
+<div class="bg-surface-container-lowest rounded-xl p-4 editorial-shadow border border-outline-variant/10 text-center">
+<p class="text-[10px] font-label font-semibold text-outline uppercase tracking-wider mb-1">7-DAY TREND</p>
+<p class="font-headline font-extrabold text-lg text-secondary">📈 Rising</p>
+</div>
+</section>
+<!-- Chart Card -->
+<section class="bg-surface-container-lowest rounded-2xl p-6 editorial-shadow border border-outline-variant/10 overflow-hidden">
+<div class="flex justify-between items-end mb-8">
+<div>
+<h2 class="text-xs font-label font-semibold text-on-surface-variant uppercase tracking-widest">7-Day Price Prediction</h2>
+<p class="font-headline font-bold text-2xl mt-1 text-on-surface">₹1,228 <span class="text-secondary text-sm font-medium">+₹50</span></p>
+</div>
+<div class="bg-secondary-container/30 px-3 py-1 rounded-full">
+<span class="text-[10px] font-bold text-on-secondary-container">BULLISH</span>
+</div>
+</div>
+<!-- Fake Visualization -->
+<div class="relative h-48 w-full">
+<!-- Grid Lines -->
+<div class="absolute inset-0 flex flex-col justify-between">
+<div class="border-b border-dashed border-outline-variant/30 w-full h-0"></div>
+<div class="border-b border-dashed border-outline-variant/30 w-full h-0"></div>
+<div class="border-b border-dashed border-outline-variant/30 w-full h-0"></div>
+<div class="border-b border-dashed border-outline-variant/30 w-full h-0"></div>
+</div>
+<!-- SVG Chart -->
+<svg class="absolute inset-0 w-full h-full overflow-visible" viewbox="0 0 700 200">
+<defs>
+<lineargradient id="gradient" x1="0%" x2="0%" y1="0%" y2="100%">
+<stop offset="0%" stop-color="#2e7d32" stop-opacity="0.2"></stop>
+<stop offset="100%" stop-color="#2e7d32" stop-opacity="0"></stop>
+</lineargradient>
+</defs>
+<!-- Area Fill -->
+<path d="M0,160 L116,150 L232,130 L348,110 L464,120 L580,70 L700,50 L700,200 L0,200 Z" fill="url(#gradient)"></path>
+<!-- Line -->
+<path d="M0,160 L116,150 L232,130 L348,110 L464,120 L580,70 L700,50" fill="none" stroke="#2e7d32" stroke-linecap="round" stroke-width="4"></path>
+<!-- Dots -->
+<circle cx="0" cy="160" fill="#ffffff" r="6" stroke="#2e7d32" stroke-width="3"></circle>
+<circle cx="116" cy="150" fill="#ffffff" r="6" stroke="#2e7d32" stroke-width="3"></circle>
+<circle cx="232" cy="130" fill="#ffffff" r="6" stroke="#2e7d32" stroke-width="3"></circle>
+<circle cx="348" cy="110" fill="#ffffff" r="6" stroke="#2e7d32" stroke-width="3"></circle>
+<circle cx="464" cy="120" fill="#ffffff" r="6" stroke="#2e7d32" stroke-width="3"></circle>
+<circle cx="580" cy="70" fill="#ffffff" r="6" stroke="#2e7d32" stroke-width="3"></circle>
+<circle cx="700" cy="50" fill="#ffffff" r="6" stroke="#2e7d32" stroke-width="3"></circle>
+</svg>
+</div>
+<!-- X-Axis Labels -->
+<div class="flex justify-between mt-4 px-1">
+<span class="text-[10px] font-label font-bold text-outline">Thu</span>
+<span class="text-[10px] font-label font-bold text-outline">Fri</span>
+<span class="text-[10px] font-label font-bold text-outline">Sat</span>
+<span class="text-[10px] font-label font-bold text-outline">Sun</span>
+<span class="text-[10px] font-label font-bold text-outline">Mon</span>
+<span class="text-[10px] font-label font-bold text-outline">Tue</span>
+<span class="text-[10px] font-label font-bold text-outline">Wed</span>
+</div>
+</section>
+<!-- Insight Card -->
+<section class="bg-[#E8F5E9] rounded-2xl p-5 border border-primary/5 flex gap-4 items-start">
+<div class="bg-white p-2 rounded-xl shadow-sm">
+<span class="material-symbols-outlined text-primary" style="font-variation-settings: 'FILL' 1;">auto_awesome</span>
+</div>
+<p class="text-on-surface-variant font-body italic text-sm leading-relaxed">
+                Good time to hold stock — prices trending upward over the next week. Expected peak around Wednesday.
+            </p>
+</section>
+<!-- Contextual Hero Image -->
+<div class="relative w-full h-40 rounded-2xl overflow-hidden mt-2">
+<img alt="Tomato farming" class="w-full h-full object-cover brightness-75" data-alt="Cinematic shot of ripe red tomatoes on the vine in a sun-drenched organic farm with soft warm sunlight flare" src="https://lh3.googleusercontent.com/aida-public/AB6AXuCPXRXKmAy7V84srWMUcDHqjD0AFqXdKSOwwY6bi_znDiufMDqa90M5B1v6r7Rrdsx6cuPJ_mOBqTvpm0oZkSjqvdOIaxrhrT5kg_-loD6CMsrwwO6CQq8kK1rdUNrBLtXbFa4BDLCiRa9GjtnKN_WkyfABC3tDJMqibeCyNPQZjQZ7XWllHwPdJ_42HjSBb2Fof1gNK_H3WssAeNXTbGBUoAohXO9hCCUXBrAhCLyIbkMRfvHf23RHbFWNLuSIx9geLXsSLsYjO2ur"/>
+<div class="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent flex items-end p-5">
+<p class="text-white font-headline font-bold">Local Market Insight: Nashik Mandi</p>
+</div>
+</div>
+</main>
+<!-- BottomNavBar -->
+<nav class="fixed bottom-0 left-0 w-full flex justify-around items-center px-4 pb-6 pt-3 bg-white dark:bg-zinc-950 border-t border-zinc-100 dark:border-zinc-900 shadow-[0_-8px_24px_rgba(0,0,0,0.06)] z-50 rounded-t-3xl">
+<a class="flex flex-col items-center justify-center text-zinc-500 dark:text-zinc-500 px-5 py-2 hover:text-green-700 dark:hover:text-green-300 transition-all duration-300 ease-out active:scale-90" href="#">
+<span class="material-symbols-outlined">home</span>
+<span class="text-[11px] font-medium font-work-sans uppercase tracking-wider mt-1">Home</span>
+</a>
+<a class="flex flex-col items-center justify-center text-zinc-500 dark:text-zinc-500 px-5 py-2 hover:text-green-700 dark:hover:text-green-300 transition-all duration-300 ease-out active:scale-90" href="#">
+<span class="material-symbols-outlined">storefront</span>
+<span class="text-[11px] font-medium font-work-sans uppercase tracking-wider mt-1">Markets</span>
+</a>
+<a class="flex flex-col items-center justify-center bg-green-50 dark:bg-green-900/20 text-green-800 dark:text-green-400 rounded-2xl px-5 py-2 transition-all duration-300 ease-out active:scale-90" href="#">
+<span class="material-symbols-outlined" style="font-variation-settings: 'FILL' 1;">show_chart</span>
+<span class="text-[11px] font-medium font-work-sans uppercase tracking-wider mt-1">Forecasts</span>
+</a>
+<a class="flex flex-col items-center justify-center text-zinc-500 dark:text-zinc-500 px-5 py-2 hover:text-green-700 dark:hover:text-green-300 transition-all duration-300 ease-out active:scale-90" href="#">
+<span class="material-symbols-outlined">person</span>
+<span class="text-[11px] font-medium font-work-sans uppercase tracking-wider mt-1">Profile</span>
+</a>
+</nav>
+</body></html>

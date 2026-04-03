@@ -1,0 +1,243 @@
+<!DOCTYPE html>
+
+<html class="light" lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;600;700;800;900&amp;family=Work_Sans:wght@300;400;500;600&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<script id="tailwind-config">
+    tailwind.config = {
+      darkMode: "class",
+      theme: {
+        extend: {
+          colors: {
+            "on-secondary": "#ffffff",
+            "surface-variant": "#e2e2e2",
+            "on-error": "#ffffff",
+            "on-background": "#1a1c1c",
+            "on-tertiary-container": "#ffeede",
+            "on-primary-fixed": "#002204",
+            "secondary": "#2a6b2c",
+            "surface-container": "#eeeeee",
+            "surface-container-low": "#f3f3f3",
+            "inverse-primary": "#88d982",
+            "inverse-surface": "#2f3131",
+            "tertiary-fixed": "#ffddb5",
+            "on-tertiary-fixed-variant": "#643f00",
+            "surface-bright": "#f9f9f9",
+            "on-primary-fixed-variant": "#005312",
+            "secondary-container": "#acf4a4",
+            "primary-fixed-dim": "#88d982",
+            "on-surface": "#1a1c1c",
+            "on-secondary-fixed": "#002203",
+            "error": "#ba1a1a",
+            "surface-container-highest": "#e2e2e2",
+            "on-primary-container": "#cbffc2",
+            "error-container": "#ffdad6",
+            "primary": "#0d631b",
+            "outline": "#707a6c",
+            "tertiary-fixed-dim": "#ffb957",
+            "primary-fixed": "#a3f69c",
+            "tertiary": "#774c00",
+            "outline-variant": "#bfcaba",
+            "on-secondary-fixed-variant": "#0c5216",
+            "surface": "#f9f9f9",
+            "on-secondary-container": "#307231",
+            "surface-tint": "#1b6d24",
+            "surface-dim": "#dadada",
+            "on-error-container": "#93000a",
+            "secondary-fixed": "#acf4a4",
+            "on-surface-variant": "#40493d",
+            "surface-container-lowest": "#ffffff",
+            "surface-container-high": "#e8e8e8",
+            "secondary-fixed-dim": "#91d78a",
+            "on-tertiary": "#ffffff",
+            "on-primary": "#ffffff",
+            "tertiary-container": "#986200",
+            "primary-container": "#2e7d32",
+            "inverse-on-surface": "#f1f1f1",
+            "background": "#f9f9f9",
+            "on-tertiary-fixed": "#2a1800"
+          },
+          fontFamily: {
+            "headline": ["Manrope"],
+            "body": ["Work Sans"],
+            "label": ["Work Sans"]
+          },
+          borderRadius: {"DEFAULT": "0.25rem", "lg": "0.5rem", "xl": "1rem", "2xl": "1.5rem", "full": "9999px"},
+        },
+      },
+    }
+  </script>
+<style>
+    .material-symbols-outlined {
+      font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+    }
+    body { font-family: 'Work Sans', sans-serif; }
+    .editorial-hang { margin-left: 1.5rem; }
+  </style>
+<style>
+    body {
+      min-height: max(884px, 100dvh);
+    }
+  </style>
+  </head>
+<body class="bg-surface text-on-surface min-h-screen pb-32">
+<!-- TopAppBar -->
+<header class="fixed top-0 left-0 w-full z-50 bg-[#f3f3f3] dark:bg-stone-900 border-b border-surface-container-highest/30">
+<div class="flex justify-between items-center w-full px-6 py-4">
+<div class="flex items-center gap-4">
+<button class="p-2 -ml-2 text-[#0d631b] dark:text-green-500 hover:bg-stone-200/50 dark:hover:bg-stone-800/50 transition-colors active:scale-95 duration-150 ease-in-out">
+<span class="material-symbols-outlined" data-icon="arrow_back">arrow_back</span>
+</button>
+<h1 class="font-['Manrope'] font-bold tracking-tight text-xl text-[#0d631b] dark:text-green-500">Mandi Prices</h1>
+</div>
+<button class="p-2 text-[#0d631b] dark:text-green-500 hover:bg-stone-200/50 dark:hover:bg-stone-800/50 transition-colors active:scale-95 duration-150 ease-in-out">
+<span class="material-symbols-outlined" data-icon="search">search</span>
+</button>
+</div>
+</header>
+<main class="mt-20 px-6">
+<!-- Search Bar -->
+<section class="mt-6">
+<div class="relative flex items-center">
+<span class="material-symbols-outlined absolute left-4 text-on-surface-variant/60" data-icon="search">search</span>
+<input class="w-full h-14 pl-12 pr-4 bg-surface-container-lowest border-none rounded-full shadow-sm text-body-md focus:ring-2 focus:ring-primary/20 placeholder:text-on-surface-variant/40" placeholder="Search commodity e.g. Tomato" type="text"/>
+</div>
+</section>
+<!-- State Filters -->
+<section class="mt-6 -mx-6">
+<div class="flex gap-2 overflow-x-auto px-6 no-scrollbar">
+<button class="px-5 py-2.5 rounded-full bg-primary text-on-primary whitespace-nowrap text-sm font-medium shadow-md transition-all active:scale-95">
+          All States
+        </button>
+<button class="px-5 py-2.5 rounded-full bg-surface-container-low border border-outline-variant/30 text-on-surface-variant whitespace-nowrap text-sm font-medium hover:bg-surface-container transition-all active:scale-95">
+          Maharashtra
+        </button>
+<button class="px-5 py-2.5 rounded-full bg-surface-container-low border border-outline-variant/30 text-on-surface-variant whitespace-nowrap text-sm font-medium hover:bg-surface-container transition-all active:scale-95">
+          Karnataka
+        </button>
+<button class="px-5 py-2.5 rounded-full bg-surface-container-low border border-outline-variant/30 text-on-surface-variant whitespace-nowrap text-sm font-medium hover:bg-surface-container transition-all active:scale-95">
+          UP
+        </button>
+<button class="px-5 py-2.5 rounded-full bg-surface-container-low border border-outline-variant/30 text-on-surface-variant whitespace-nowrap text-sm font-medium hover:bg-surface-container transition-all active:scale-95">
+          Gujarat
+        </button>
+</div>
+</section>
+<!-- Sorting and Metadata -->
+<section class="mt-8">
+<div class="flex justify-between items-center mb-4">
+<div class="flex p-1 bg-surface-container rounded-full gap-1">
+<button class="px-4 py-1.5 rounded-full bg-primary text-on-primary text-xs font-bold shadow-sm transition-all">Highest Price</button>
+<button class="px-4 py-1.5 rounded-full text-on-surface-variant text-xs font-medium hover:bg-surface-container-high transition-all">Most Recent</button>
+</div>
+</div>
+<p class="text-xs font-medium text-on-surface-variant/60 font-label tracking-wide uppercase">Showing 24 results for Tomato</p>
+</section>
+<!-- Price Cards List -->
+<section class="mt-6 space-y-4 pb-12">
+<!-- Card 1 -->
+<div class="bg-surface-container-lowest rounded-xl shadow-[0_4px_12px_rgba(0,0,0,0.04)] overflow-hidden border-l-4 border-primary p-5 relative">
+<div class="flex justify-between items-start">
+<div>
+<h3 class="font-headline font-bold text-on-surface text-lg">Tomato • Mysore</h3>
+<p class="text-on-surface-variant/70 text-xs font-medium mt-0.5">Karnataka</p>
+</div>
+<span class="material-symbols-outlined text-primary/20 scale-125" data-icon="trending_up">trending_up</span>
+</div>
+<div class="flex justify-between items-end mt-4">
+<div>
+<p class="text-primary font-headline font-black text-2xl tracking-tight">₹ 3,369<span class="text-xs font-body font-normal text-on-surface-variant/60 ml-1">/quintal</span></p>
+</div>
+<p class="text-[10px] font-label text-on-surface-variant/40 uppercase tracking-widest">2026-04-01</p>
+</div>
+</div>
+<!-- Card 2 -->
+<div class="bg-surface-container-lowest rounded-xl shadow-[0_4px_12px_rgba(0,0,0,0.04)] overflow-hidden border-l-4 border-primary p-5">
+<div class="flex justify-between items-start">
+<div>
+<h3 class="font-headline font-bold text-on-surface text-lg">Tomato • Nashik</h3>
+<p class="text-on-surface-variant/70 text-xs font-medium mt-0.5">Maharashtra</p>
+</div>
+<span class="material-symbols-outlined text-primary/20 scale-125" data-icon="trending_down">trending_down</span>
+</div>
+<div class="flex justify-between items-end mt-4">
+<div>
+<p class="text-primary font-headline font-black text-2xl tracking-tight">₹ 3,120<span class="text-xs font-body font-normal text-on-surface-variant/60 ml-1">/quintal</span></p>
+</div>
+<p class="text-[10px] font-label text-on-surface-variant/40 uppercase tracking-widest">2026-04-01</p>
+</div>
+</div>
+<!-- Card 3 -->
+<div class="bg-surface-container-lowest rounded-xl shadow-[0_4px_12px_rgba(0,0,0,0.04)] overflow-hidden border-l-4 border-primary p-5">
+<div class="flex justify-between items-start">
+<div>
+<h3 class="font-headline font-bold text-on-surface text-lg">Tomato • Bangalore</h3>
+<p class="text-on-surface-variant/70 text-xs font-medium mt-0.5">Karnataka</p>
+</div>
+<span class="material-symbols-outlined text-primary/20 scale-125" data-icon="horizontal_rule">horizontal_rule</span>
+</div>
+<div class="flex justify-between items-end mt-4">
+<div>
+<p class="text-primary font-headline font-black text-2xl tracking-tight">₹ 2,980<span class="text-xs font-body font-normal text-on-surface-variant/60 ml-1">/quintal</span></p>
+</div>
+<p class="text-[10px] font-label text-on-surface-variant/40 uppercase tracking-widest">2026-03-31</p>
+</div>
+</div>
+<!-- Card 4 -->
+<div class="bg-surface-container-lowest rounded-xl shadow-[0_4px_12px_rgba(0,0,0,0.04)] overflow-hidden border-l-4 border-primary p-5">
+<div class="flex justify-between items-start">
+<div>
+<h3 class="font-headline font-bold text-on-surface text-lg">Tomato • Pune</h3>
+<p class="text-on-surface-variant/70 text-xs font-medium mt-0.5">Maharashtra</p>
+</div>
+<span class="material-symbols-outlined text-primary/20 scale-125" data-icon="trending_up">trending_up</span>
+</div>
+<div class="flex justify-between items-end mt-4">
+<div>
+<p class="text-primary font-headline font-black text-2xl tracking-tight">₹ 2,850<span class="text-xs font-body font-normal text-on-surface-variant/60 ml-1">/quintal</span></p>
+</div>
+<p class="text-[10px] font-label text-on-surface-variant/40 uppercase tracking-widest">2026-03-31</p>
+</div>
+</div>
+<!-- Card 5 -->
+<div class="bg-surface-container-lowest rounded-xl shadow-[0_4px_12px_rgba(0,0,0,0.04)] overflow-hidden border-l-4 border-primary p-5">
+<div class="flex justify-between items-start">
+<div>
+<h3 class="font-headline font-bold text-on-surface text-lg">Tomato • Lucknow</h3>
+<p class="text-on-surface-variant/70 text-xs font-medium mt-0.5">Uttar Pradesh</p>
+</div>
+<span class="material-symbols-outlined text-primary/20 scale-125" data-icon="trending_up">trending_up</span>
+</div>
+<div class="flex justify-between items-end mt-4">
+<div>
+<p class="text-primary font-headline font-black text-2xl tracking-tight">₹ 2,740<span class="text-xs font-body font-normal text-on-surface-variant/60 ml-1">/quintal</span></p>
+</div>
+<p class="text-[10px] font-label text-on-surface-variant/40 uppercase tracking-widest">2026-03-30</p>
+</div>
+</div>
+</section>
+</main>
+<!-- BottomNavBar -->
+<nav class="fixed bottom-0 left-0 w-full z-50 flex justify-around items-center px-4 pb-6 pt-2 bg-white dark:bg-black rounded-t-3xl shadow-[0_-8px_24px_rgba(0,0,0,0.06)]">
+<div class="flex flex-col items-center justify-center text-stone-400 dark:text-stone-600 px-5 py-2 hover:bg-stone-100 dark:hover:bg-stone-900 transition-all active:scale-90 duration-200">
+<span class="material-symbols-outlined" data-icon="home">home</span>
+<span class="font-['Work_Sans'] font-medium text-[10px] uppercase tracking-wider mt-1">Home</span>
+</div>
+<div class="flex flex-col items-center justify-center text-stone-400 dark:text-stone-600 px-5 py-2 hover:bg-stone-100 dark:hover:bg-stone-900 transition-all active:scale-90 duration-200">
+<span class="material-symbols-outlined" data-icon="psychiatry">psychiatry</span>
+<span class="font-['Work_Sans'] font-medium text-[10px] uppercase tracking-wider mt-1">Diagnose</span>
+</div>
+<div class="flex flex-col items-center justify-center bg-[#0d631b]/10 dark:bg-green-900/30 text-[#0d631b] dark:text-green-400 rounded-2xl px-5 py-2 transition-all active:scale-90 duration-200">
+<span class="material-symbols-outlined" data-icon="storefront" style="font-variation-settings: 'FILL' 1;">storefront</span>
+<span class="font-['Work_Sans'] font-medium text-[10px] uppercase tracking-wider mt-1">Market</span>
+</div>
+<div class="flex flex-col items-center justify-center text-stone-400 dark:text-stone-600 px-5 py-2 hover:bg-stone-100 dark:hover:bg-stone-900 transition-all active:scale-90 duration-200">
+<span class="material-symbols-outlined" data-icon="settings">settings</span>
+<span class="font-['Work_Sans'] font-medium text-[10px] uppercase tracking-wider mt-1">Settings</span>
+</div>
+</nav>
+</body></html>

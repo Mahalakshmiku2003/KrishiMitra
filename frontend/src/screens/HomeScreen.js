@@ -1,14 +1,17 @@
 import React, { useEffect, useState } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, ScrollView, RefreshControl } from 'react-native';
-import StatusBadge from '../components/StatusBadge';
+import { View, Text, StyleSheet, TouchableOpacity, ScrollView, RefreshControl, Image, SafeAreaView, Platform } from 'react-native';
+import { MaterialIcons } from '@expo/vector-icons';
 import { checkHealth } from '../api/health';
 import { getLastDiagnosis } from '../utils/storage';
 import EmptyState from '../components/EmptyState';
+import { theme } from '../theme';
 
 const HomeScreen = ({ navigation }) => {
   const [serverStatus, setServerStatus] = useState('offline');
-  const [recentDiagnosis, setRecentDiagnosis] = useState(null);
+  const [recentDiagnosis, setRecentDiagnosis] = fallbackData();
   const [refreshing, setRefreshing] = useState(false);
+
+  function fallbackData() { return useState(null); }
 
   const fetchData = async () => {
     try {
@@ -18,6 +21,7 @@ const HomeScreen = ({ navigation }) => {
       setServerStatus('offline');
     }
     
+    // Keeping storage logic
     const diag = await getLastDiagnosis();
     setRecentDiagnosis(diag);
   };
@@ -33,91 +37,516 @@ const HomeScreen = ({ navigation }) => {
   };
 
   return (
-    <ScrollView 
-      style={styles.container} 
-      contentContainerStyle={styles.content}
-      refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} colors={['#2E7D32']} />}
-    >
-      <Text style={styles.title}>KrishiMitra 🌾</Text>
-      <Text style={styles.subtitle}>PhD-level farming intelligence in your pocket</Text>
-      
-      <StatusBadge status={serverStatus} />
-      
-      <View style={styles.actionRow}>
-        <TouchableOpacity 
-          style={[styles.button, styles.primaryButton]}
-          onPress={() => navigation.navigate('Diagnose')}
-        >
-          <Text style={styles.buttonText}>🔍 Diagnose Crop</Text>
-        </TouchableOpacity>
+    <SafeAreaView style={styles.safeArea}>
+      {/* Top Navigation Anchor */}
+      <View style={styles.header}>
+        <View style={styles.headerLogoContainer}>
+          <MaterialIcons name="local-florist" size={24} color={theme.colors.primary} />
+          <Text style={styles.headerLogoText}>KrishiMitra</Text>
+        </View>
+        <MaterialIcons name="cloud" size={24} color={theme.colors.primaryContainer} />
+      </View>
 
-        <TouchableOpacity 
-          style={[styles.button, styles.accentButton]}
-          onPress={() => navigation.navigate('Market')}
-        >
-          <Text style={[styles.buttonText, { color: '#333' }]}>💰 Market Prices</Text>
-        </TouchableOpacity>
-      </View>
-      
-      <View style={styles.cardHeader}>
-        <Text style={styles.cardTitle}>Recent Activity</Text>
-      </View>
-      
-      <View style={styles.card}>
-        {recentDiagnosis ? (
-          <View>
-            <View style={styles.diagHeader}>
-              <Text style={styles.diseaseName}>{recentDiagnosis.disease_name}</Text>
-              <Text style={styles.dateText}>{recentDiagnosis.date ? new Date(recentDiagnosis.date).toLocaleDateString() : 'Today'}</Text>
-            </View>
-            <Text style={styles.cardText}>Confidence: {(recentDiagnosis.confidence * 100).toFixed(1)}%</Text>
-            <Text style={[styles.cardText, { color: '#2E7D32', fontWeight: 'bold', marginTop: 4 }]}>
-              Severity: {recentDiagnosis.severity || 'Normal'}
-            </Text>
+      <ScrollView 
+        style={styles.container} 
+        contentContainerStyle={styles.content}
+        showsVerticalScrollIndicator={false}
+        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} colors={[theme.colors.primary]} />}
+      >
+        {/* Hero Identity Section */}
+        <View style={styles.heroSection}>
+          <View style={styles.heroPretitleContainer}>
+            <MaterialIcons name="grass" size={16} color={theme.colors.tertiary} />
+            <Text style={styles.heroPretitle}>THE DIGITAL AGRONOMIST</Text>
           </View>
-        ) : (
-          <EmptyState 
-            icon="🌿" 
-            title="No diagnosis yet" 
-            subtitle="Take a photo of your crop to get started with AI diagnosis."
-          />
-        )}
-      </View>
-    </ScrollView>
+          <Text style={styles.heroSubtitle}>PhD-level farming intelligence in your pocket</Text>
+        </View>
+
+        {/* Weather Strip Card */}
+        <View style={styles.weatherCard}>
+          <View style={styles.weatherLeft}>
+            <View style={styles.weatherIconContainer}>
+              <MaterialIcons name="wb-sunny" size={28} color={theme.colors.onTertiaryFixed} />
+            </View>
+            <View>
+              <Text style={styles.weatherTemp}>32°C</Text>
+              <Text style={styles.weatherCity}>Nashik, MH</Text>
+            </View>
+          </View>
+          <View style={styles.weatherRight}>
+            <View style={styles.idealStateBadge}>
+              <View style={styles.idealStateDot} />
+              <Text style={styles.idealStateText}>IDEAL STATE</Text>
+            </View>
+            <Text style={styles.weatherSubtext}>Good day to spray</Text>
+          </View>
+        </View>
+
+        {/* Server Status Pill */}
+        <View style={styles.statusContainer}>
+          <View style={styles.statusPill}>
+            <View style={[styles.statusDot, { backgroundColor: serverStatus === 'online' ? theme.colors.primaryContainer : theme.colors.error }]} />
+            <Text style={styles.statusText}>SERVER {serverStatus.toUpperCase()}</Text>
+          </View>
+        </View>
+
+        {/* Primary Actions */}
+        <View style={styles.actionGrid}>
+          <TouchableOpacity 
+            style={styles.primaryActionButton}
+            onPress={() => navigation.navigate('Diagnose')}
+            activeOpacity={0.9}
+          >
+            <View style={styles.actionRowPrimary}>
+              <MaterialIcons name="photo-camera" size={24} color={theme.colors.onPrimary} />
+              <Text style={styles.primaryActionText}>Diagnose My Crop</Text>
+            </View>
+            <MaterialIcons name="arrow-forward-ios" size={18} color={theme.colors.onPrimary} />
+          </TouchableOpacity>
+
+          <TouchableOpacity 
+            style={styles.secondaryActionButton}
+            onPress={() => navigation.navigate('Market')}
+            activeOpacity={0.9}
+          >
+            <View style={styles.actionRowPrimary}>
+              <MaterialIcons name="currency-rupee" size={24} color={theme.colors.onTertiary} />
+              <Text style={styles.secondaryActionText}>Check Market Prices</Text>
+            </View>
+            <MaterialIcons name="arrow-forward-ios" size={18} color={theme.colors.onTertiary} />
+          </TouchableOpacity>
+        </View>
+
+        {/* Recent Activity */}
+        <View style={styles.recentActivitySection}>
+          <View style={styles.sectionHeader}>
+            <Text style={styles.sectionTitle}>Recent Activity</Text>
+            <TouchableOpacity><Text style={styles.seeAllText}>SEE ALL</Text></TouchableOpacity>
+          </View>
+
+          {recentDiagnosis ? (
+            <View style={styles.activityCard}>
+              <View style={styles.activityImageContainer}>
+                {recentDiagnosis.image_uri ? (
+                  <Image source={{ uri: recentDiagnosis.image_uri }} style={styles.activityImage} />
+                ) : (
+                  <View style={[styles.activityImage, { backgroundColor: theme.colors.surfaceContainerHighest }]} />
+                )}
+                <View style={[styles.activityBadge, { backgroundColor: recentDiagnosis.severity === 'High' ? theme.colors.error : theme.colors.secondary }]}>
+                  <Text style={styles.activityBadgeText}>{recentDiagnosis.severity || 'Normal'}</Text>
+                </View>
+              </View>
+              <View style={styles.activityCardBody}>
+                <View style={styles.activityBodyHeader}>
+                  <View>
+                    <Text style={styles.activityTitle}>{recentDiagnosis.disease_name}</Text>
+                    <Text style={styles.activitySubtitle}>Confidence: {(recentDiagnosis.confidence * 100).toFixed(1)}%</Text>
+                  </View>
+                  <Text style={styles.activityDate}>{recentDiagnosis.date ? new Date(recentDiagnosis.date).toLocaleDateString() : 'TODAY'}</Text>
+                </View>
+                <View style={styles.activityFooterRow}>
+                  <View style={styles.activityFooterLeft}>
+                    <MaterialIcons name="medical-services" size={14} color={theme.colors.primary} />
+                    <Text style={styles.activityFooterText}>Treatment Plan Ready</Text>
+                  </View>
+                  <TouchableOpacity onPress={() => navigation.navigate('Diagnose', { screen: 'DiagnosisResult' })} style={styles.viewDetailsBtn}>
+                    <Text style={styles.viewDetailsText}>VIEW DETAILS</Text>
+                    <MaterialIcons name="chevron-right" size={14} color={theme.colors.onSurfaceVariant} />
+                  </TouchableOpacity>
+                </View>
+              </View>
+            </View>
+          ) : (
+             <EmptyState 
+              icon="spa" 
+              title="No diagnosis yet" 
+              subtitle="Take a photo of your crop to get started with AI diagnosis."
+            />
+          )}
+        </View>
+
+        {/* Quick Stats Bento Grid */}
+        <View style={styles.bentoGrid}>
+          <View style={styles.bentoItemSmall}>
+            <MaterialIcons name="analytics" size={24} color={theme.colors.primary} />
+            <View style={styles.bentoTextGroup}>
+              <Text style={styles.bentoVal}>2</Text>
+              <Text style={styles.bentoLabel}>DIAGNOSES TODAY</Text>
+            </View>
+          </View>
+          
+          <View style={styles.bentoItemSmall}>
+            <MaterialIcons name="trending-up" size={24} color={theme.colors.tertiary} />
+            <View style={styles.bentoTextGroup}>
+              <Text style={styles.bentoVal}>₹3200</Text>
+              <Text style={styles.bentoLabel}>AVG TOMATO/QUINTAL</Text>
+            </View>
+          </View>
+
+          <View style={styles.bentoItemLarge}>
+            <View style={styles.bentoLargeTextGroup}>
+              <Text style={styles.bentoLargeLabel}>WEATHER RISK</Text>
+              <Text style={styles.bentoLargeVal}>Very Low</Text>
+            </View>
+            <View style={styles.bentoIconBg}>
+              <MaterialIcons name="verified-user" size={36} color={theme.colors.onPrimaryContainer} />
+            </View>
+          </View>
+        </View>
+        
+        {/* Padding for bottom tab nav */}
+        <View style={{height: 100}} />
+      </ScrollView>
+    </SafeAreaView>
   );
 };
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#F5F5F5' },
-  content: { padding: 24, paddingTop: 60 },
-  title: { fontSize: 28, fontWeight: 'bold', color: '#2E7D32', marginBottom: 8 },
-  subtitle: { fontSize: 16, color: '#2E7D32', opacity: 0.8, marginBottom: 24 },
-  actionRow: { marginTop: 10 },
-  button: {
-    width: '100%',
-    height: 56,
-    borderRadius: 12,
-    justifyContent: 'center',
+  safeArea: {
+    flex: 1,
+    backgroundColor: theme.colors.surface,
+    paddingTop: Platform.OS === 'android' ? 25 : 0,
+  },
+  header: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: 16,
+    paddingHorizontal: 24,
+    paddingVertical: 16,
+    backgroundColor: theme.colors.surfaceContainerLow,
+    zIndex: 10,
+  },
+  headerLogoContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  headerLogoText: {
+    fontSize: 24,
+    fontWeight: '700',
+    color: theme.colors.primary,
+    letterSpacing: -0.5,
+  },
+  container: {
+    flex: 1,
+    backgroundColor: theme.colors.surface,
+  },
+  content: {
+    paddingHorizontal: 24,
+    paddingTop: 24,
+    paddingBottom: 24,
+    gap: 32,
+  },
+  heroSection: {
+    gap: 4,
+  },
+  heroPretitleContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  heroPretitle: {
+    fontSize: 12,
+    fontWeight: '700',
+    color: theme.colors.tertiary,
+    letterSpacing: 2,
+    ...theme.typography.label,
+  },
+  heroSubtitle: {
+    fontSize: 14,
+    color: theme.colors.onSurfaceVariant,
+    opacity: 0.8,
+    lineHeight: 22,
+  },
+  weatherCard: {
+    backgroundColor: theme.colors.surfaceContainerLowest,
+    borderRadius: 24,
+    padding: 20,
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.04,
+    shadowRadius: 24,
     elevation: 2,
-    shadowColor: '#000', shadowOffset: { width: 0, height: 1 }, shadowOpacity: 0.2, shadowRadius: 2,
+    marginBottom: -10, // overlap effect
   },
-  primaryButton: { backgroundColor: '#2E7D32' },
-  accentButton: { backgroundColor: '#F9A825' },
-  buttonText: { fontSize: 16, fontWeight: 'bold', color: '#FFFFFF' },
-  cardHeader: { marginTop: 10, marginBottom: 12 },
-  cardTitle: { fontSize: 18, fontWeight: 'bold', color: '#333' },
-  card: { 
-    backgroundColor: '#FFFFFF', 
-    borderRadius: 12, 
-    padding: 16, 
-    shadowColor: '#000', shadowOpacity: 0.05, shadowRadius: 10, elevation: 2 
+  weatherLeft: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 16,
   },
-  diagHeader: { flexDirection: 'row', justifyContent: 'space-between', marginBottom: 12, borderBottomWidth: 1, borderBottomColor: '#F5F5F5', paddingBottom: 8 },
-  diseaseName: { fontSize: 18, fontWeight: 'bold', color: '#2E7D32' },
-  dateText: { fontSize: 12, color: '#9E9E9E' },
-  cardText: { fontSize: 14, color: '#666' }
+  weatherIconContainer: {
+    backgroundColor: theme.colors.tertiaryFixed,
+    padding: 12,
+    borderRadius: 16,
+  },
+  weatherTemp: {
+    fontSize: 24,
+    fontWeight: '700',
+    color: theme.colors.onSurface,
+  },
+  weatherCity: {
+    fontSize: 12,
+    fontWeight: '500',
+    color: theme.colors.onSurfaceVariant,
+  },
+  weatherRight: {
+    alignItems: 'flex-end',
+  },
+  idealStateBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    paddingHorizontal: 12,
+    paddingVertical: 4,
+    backgroundColor: 'rgba(46, 125, 50, 0.1)',
+    borderRadius: 999,
+    marginBottom: 4,
+  },
+  idealStateDot: {
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+    backgroundColor: theme.colors.primary,
+  },
+  idealStateText: {
+    fontSize: 10,
+    fontWeight: '700',
+    color: theme.colors.primary,
+    ...theme.typography.label,
+  },
+  weatherSubtext: {
+    fontSize: 12,
+    fontWeight: '600',
+    color: theme.colors.primary,
+  },
+  statusContainer: {
+    alignItems: 'center',
+  },
+  statusPill: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    paddingHorizontal: 16,
+    paddingVertical: 6,
+    backgroundColor: theme.colors.surfaceContainerHighest,
+    borderRadius: 999,
+  },
+  statusDot: {
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+  },
+  statusText: {
+    fontSize: 11,
+    fontWeight: '500',
+    color: theme.colors.onSurfaceVariant,
+    letterSpacing: 0.5,
+    ...theme.typography.label,
+  },
+  actionGrid: {
+    gap: 16,
+  },
+  primaryActionButton: {
+    width: '100%',
+    backgroundColor: theme.colors.primary,
+    paddingVertical: 20,
+    paddingHorizontal: 24,
+    borderRadius: 24,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
+  secondaryActionButton: {
+    width: '100%',
+    backgroundColor: theme.colors.tertiary,
+    paddingVertical: 20,
+    paddingHorizontal: 24,
+    borderRadius: 24,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
+  actionRowPrimary: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 16,
+  },
+  primaryActionText: {
+    color: theme.colors.onPrimary,
+    fontSize: 18,
+    fontWeight: '700',
+  },
+  secondaryActionText: {
+    color: theme.colors.onTertiary,
+    fontSize: 18,
+    fontWeight: '700',
+  },
+  recentActivitySection: {
+    gap: 16,
+  },
+  sectionHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'baseline',
+  },
+  sectionTitle: {
+    fontSize: 20,
+    fontWeight: '700',
+    color: theme.colors.onSurface,
+    letterSpacing: -0.5,
+  },
+  seeAllText: {
+    fontSize: 12,
+    fontWeight: '700',
+    color: theme.colors.primary,
+    letterSpacing: 1,
+    ...theme.typography.label,
+  },
+  activityCard: {
+    backgroundColor: theme.colors.surfaceContainerLowest,
+    borderRadius: 24,
+    overflow: 'hidden',
+    borderWidth: 1,
+    borderColor: 'rgba(191, 202, 186, 0.2)', // outlineVariant approx
+  },
+  activityImageContainer: {
+    height: 128,
+    width: '100%',
+    position: 'relative',
+  },
+  activityImage: {
+    width: '100%',
+    height: '100%',
+    resizeMode: 'cover',
+  },
+  activityBadge: {
+    position: 'absolute',
+    top: 12,
+    right: 12,
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 999,
+  },
+  activityBadgeText: {
+    color: theme.colors.onError,
+    fontSize: 10,
+    fontWeight: '700',
+    textTransform: 'uppercase',
+  },
+  activityCardBody: {
+    padding: 16,
+    gap: 12,
+  },
+  activityBodyHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'flex-start',
+  },
+  activityTitle: {
+    fontSize: 16,
+    fontWeight: '700',
+    lineHeight: 20,
+  },
+  activitySubtitle: {
+    fontSize: 12,
+    color: theme.colors.onSurfaceVariant,
+    marginTop: 2,
+  },
+  activityDate: {
+    fontSize: 10,
+    color: theme.colors.onSurfaceVariant,
+    ...theme.typography.label,
+  },
+  activityFooterRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingTop: 8,
+  },
+  activityFooterLeft: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  activityFooterText: {
+    fontSize: 12,
+    fontWeight: '600',
+    color: theme.colors.primary,
+  },
+  viewDetailsBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+  },
+  viewDetailsText: {
+    fontSize: 12,
+    fontWeight: '700',
+    color: theme.colors.onSurfaceVariant,
+    ...theme.typography.label,
+  },
+  bentoGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 12,
+  },
+  bentoItemSmall: {
+    flex: 1,
+    minWidth: '45%',
+    backgroundColor: theme.colors.surfaceContainerLow,
+    padding: 16,
+    borderRadius: 24,
+    gap: 8,
+  },
+  bentoTextGroup: {
+    marginTop: 4,
+  },
+  bentoVal: {
+    fontSize: 32,
+    fontWeight: '800',
+    color: theme.colors.onSurface,
+    lineHeight: 38,
+  },
+  bentoLabel: {
+    fontSize: 10,
+    fontWeight: '700',
+    color: theme.colors.onSurfaceVariant,
+    letterSpacing: 0.5,
+    ...theme.typography.label,
+  },
+  bentoItemLarge: {
+    width: '100%',
+    backgroundColor: theme.colors.primaryContainer,
+    padding: 20,
+    borderRadius: 24,
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
+  bentoLargeTextGroup: {
+    gap: 4,
+  },
+  bentoLargeLabel: {
+    fontSize: 11,
+    fontWeight: '700',
+    color: theme.colors.onPrimaryContainer,
+    opacity: 0.8,
+    letterSpacing: 1,
+    ...theme.typography.label,
+  },
+  bentoLargeVal: {
+    fontSize: 24,
+    fontWeight: '700',
+    color: theme.colors.onPrimaryContainer,
+  },
+  bentoIconBg: {
+    backgroundColor: 'rgba(255,255,255,0.2)',
+    padding: 12,
+    borderRadius: 999,
+  }
 });
 
 export default HomeScreen;
+

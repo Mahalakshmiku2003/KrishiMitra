@@ -1,0 +1,242 @@
+<!DOCTYPE html>
+
+<html lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>Nearby Mandis - KrishiMitra</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;700;800&amp;family=Work+Sans:wght@400;500;600&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script id="tailwind-config">
+        tailwind.config = {
+          darkMode: "class",
+          theme: {
+            extend: {
+              colors: {
+                "surface-tint": "#1b6d24",
+                "on-tertiary-fixed": "#2a1800",
+                "outline": "#707a6c",
+                "on-tertiary": "#ffffff",
+                "on-secondary-fixed-variant": "#0c5216",
+                "on-error-container": "#93000a",
+                "surface-container": "#eeeeee",
+                "on-primary-container": "#cbffc2",
+                "on-primary": "#ffffff",
+                "primary": "#0d631b",
+                "inverse-primary": "#88d982",
+                "on-primary-fixed-variant": "#005312",
+                "on-tertiary-container": "#ffeede",
+                "on-surface-variant": "#40493d",
+                "primary-fixed": "#a3f69c",
+                "on-surface": "#1a1c1c",
+                "secondary-fixed": "#acf4a4",
+                "surface-container-low": "#f3f3f3",
+                "background": "#f9f9f9",
+                "secondary-container": "#acf4a4",
+                "error-container": "#ffdad6",
+                "tertiary-fixed": "#ffddb5",
+                "on-error": "#ffffff",
+                "surface": "#f9f9f9",
+                "secondary-fixed-dim": "#91d78a",
+                "secondary": "#2a6b2c",
+                "tertiary-fixed-dim": "#ffb957",
+                "surface-variant": "#e2e2e2",
+                "surface-bright": "#f9f9f9",
+                "on-secondary-container": "#307231",
+                "primary-fixed-dim": "#88d982",
+                "error": "#ba1a1a",
+                "tertiary": "#774c00",
+                "inverse-on-surface": "#f1f1f1",
+                "surface-container-lowest": "#ffffff",
+                "on-tertiary-fixed-variant": "#643f00",
+                "on-secondary": "#ffffff",
+                "tertiary-container": "#986200",
+                "outline-variant": "#bfcaba",
+                "primary-container": "#2e7d32",
+                "on-primary-fixed": "#002204",
+                "inverse-surface": "#2f3131",
+                "surface-container-high": "#e8e8e8",
+                "surface-container-highest": "#e2e2e2",
+                "on-secondary-fixed": "#002203",
+                "on-background": "#1a1c1c",
+                "surface-dim": "#dadada"
+              },
+              fontFamily: {
+                "headline": ["Manrope"],
+                "body": ["Work Sans"],
+                "label": ["Work Sans"]
+              },
+              borderRadius: {"DEFAULT": "0.25rem", "lg": "0.5rem", "xl": "1.5rem", "full": "9999px"},
+            },
+          },
+        }
+      </script>
+<style>
+        .material-symbols-outlined {
+            font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+        }
+        body { font-family: 'Work Sans', sans-serif; }
+        h1, h2, h3 { font-family: 'Manrope', sans-serif; }
+    </style>
+<style>
+    body {
+      min-height: max(884px, 100dvh);
+    }
+  </style>
+  </head>
+<body class="bg-surface-container-low text-on-surface min-h-screen pb-32">
+<!-- Success Toast -->
+<div class="fixed top-4 left-0 right-0 z-[60] flex justify-center px-4">
+<div class="bg-primary-container text-on-primary-container px-4 py-2 rounded-full flex items-center gap-2 shadow-lg text-sm font-semibold border border-primary/20">
+<span class="material-symbols-outlined text-sm" style="font-variation-settings: 'FILL' 1;">check_circle</span>
+            Mandis Found - Ranked top 3 profitable markets
+        </div>
+</div>
+<!-- Top App Bar -->
+<header class="sticky top-0 z-50 bg-[#f3f3f3] flex items-center px-4 py-3 w-full">
+<button class="material-symbols-outlined text-[#0d631b] p-2 hover:bg-zinc-200 transition-colors active:scale-95 rounded-full" data-icon="arrow_back">arrow_back</button>
+<h1 class="ml-2 font-manrope font-bold tracking-tight text-xl text-[#0d631b]">Nearby Mandis</h1>
+</header>
+<main class="px-5 pt-6 space-y-8">
+<!-- Input Card -->
+<section class="bg-surface-container-lowest rounded-xl p-6 shadow-[0_4px_20px_rgba(0,0,0,0.04)]">
+<div class="space-y-5">
+<div>
+<label class="block text-[10px] font-semibold uppercase tracking-wider text-on-surface-variant mb-1 ml-1">Your Location</label>
+<div class="flex items-center bg-surface-container-highest rounded-lg px-4 py-3">
+<span class="material-symbols-outlined text-primary mr-2" data-icon="location_on">location_on</span>
+<input class="bg-transparent border-none p-0 w-full focus:ring-0 font-medium text-on-surface" type="text" value="Nashik"/>
+</div>
+</div>
+<div>
+<label class="block text-[10px] font-semibold uppercase tracking-wider text-on-surface-variant mb-1 ml-1">Crop Type</label>
+<div class="flex items-center bg-surface-container-highest rounded-lg px-4 py-3">
+<span class="material-symbols-outlined text-primary mr-2" data-icon="agriculture">agriculture</span>
+<input class="bg-transparent border-none p-0 w-full focus:ring-0 font-medium text-on-surface" type="text" value="Tomato"/>
+</div>
+</div>
+<div>
+<div class="flex justify-between items-center mb-3">
+<label class="text-[10px] font-semibold uppercase tracking-wider text-on-surface-variant ml-1">Search Radius</label>
+<span class="text-primary font-bold text-sm">100 km</span>
+</div>
+<input class="w-full h-2 bg-surface-container-highest rounded-lg appearance-none cursor-pointer accent-primary" max="500" min="0" type="range" value="100"/>
+</div>
+<button class="w-full bg-primary-container hover:bg-[#256a29] text-white font-headline font-bold py-4 rounded-full transition-all active:scale-[0.98] shadow-md">
+                    Find Best Mandis
+                </button>
+</div>
+</section>
+<!-- Recommended Markets Section -->
+<section class="space-y-4">
+<div class="px-1">
+<h2 class="text-xl font-bold tracking-tight text-on-surface">Recommended Markets</h2>
+<p class="text-on-surface-variant text-xs font-medium">Ranked by estimated net profit after transport</p>
+</div>
+<!-- Mandi Card 1 (Pune) -->
+<div class="bg-surface-container-lowest rounded-xl p-5 shadow-[0_4px_16px_rgba(0,0,0,0.03)] border-l-4 border-[#FFD700]">
+<div class="flex justify-between items-start mb-6">
+<div class="flex items-center gap-4">
+<div class="w-12 h-12 rounded-full bg-[#FFD700] flex items-center justify-center text-white font-bold text-lg shadow-sm">
+                            #1
+                        </div>
+<div>
+<h3 class="text-lg font-bold leading-tight">Pune</h3>
+<p class="text-on-surface-variant text-sm font-medium">Pune District</p>
+</div>
+</div>
+<div class="bg-[#FFF8E1] px-4 py-2 rounded-xl text-right">
+<p class="text-[9px] uppercase font-bold text-tertiary-container tracking-wider mb-0.5">Estimated Net</p>
+<p class="text-primary font-bold text-lg leading-none">₹2,481</p>
+</div>
+</div>
+<div class="grid grid-cols-2 gap-4 pt-4 border-t border-surface-container text-xs">
+<div class="flex flex-col gap-1">
+<span class="text-on-surface-variant uppercase text-[10px] font-semibold tracking-tighter">Mandi Price</span>
+<span class="font-bold text-on-surface">₹2,990 <span class="font-normal text-[10px]">/ quintal</span></span>
+</div>
+<div class="flex flex-col gap-1 text-right">
+<span class="text-on-surface-variant uppercase text-[10px] font-semibold tracking-tighter">Transport</span>
+<span class="font-bold text-error">₹508</span>
+</div>
+</div>
+</div>
+<!-- Mandi Card 2 (Mumbai) -->
+<div class="bg-surface-container-lowest rounded-xl p-5 shadow-[0_4px_16px_rgba(0,0,0,0.03)] border-l-4 border-[#9E9E9E]">
+<div class="flex justify-between items-start mb-6">
+<div class="flex items-center gap-4">
+<div class="w-12 h-12 rounded-full bg-[#9E9E9E] flex items-center justify-center text-white font-bold text-lg shadow-sm">
+                            #2
+                        </div>
+<div>
+<h3 class="text-lg font-bold leading-tight">Mumbai</h3>
+<p class="text-on-surface-variant text-sm font-medium">Vashi APMC</p>
+</div>
+</div>
+<div class="bg-[#FFF8E1] px-4 py-2 rounded-xl text-right">
+<p class="text-[9px] uppercase font-bold text-tertiary-container tracking-wider mb-0.5">Estimated Net</p>
+<p class="text-primary font-bold text-lg leading-none">₹2,315</p>
+</div>
+</div>
+<div class="grid grid-cols-2 gap-4 pt-4 border-t border-surface-container text-xs">
+<div class="flex flex-col gap-1">
+<span class="text-on-surface-variant uppercase text-[10px] font-semibold tracking-tighter">Mandi Price</span>
+<span class="font-bold text-on-surface">₹3,120 <span class="font-normal text-[10px]">/ quintal</span></span>
+</div>
+<div class="flex flex-col gap-1 text-right">
+<span class="text-on-surface-variant uppercase text-[10px] font-semibold tracking-tighter">Transport</span>
+<span class="font-bold text-error">₹805</span>
+</div>
+</div>
+</div>
+<!-- Mandi Card 3 (Nashik) -->
+<div class="bg-surface-container-lowest rounded-xl p-5 shadow-[0_4px_16px_rgba(0,0,0,0.03)] border-l-4 border-[#CD7F32]">
+<div class="flex justify-between items-start mb-6">
+<div class="flex items-center gap-4">
+<div class="w-12 h-12 rounded-full bg-[#CD7F32] flex items-center justify-center text-white font-bold text-lg shadow-sm">
+                            #3
+                        </div>
+<div>
+<h3 class="text-lg font-bold leading-tight">Nashik</h3>
+<p class="text-on-surface-variant text-sm font-medium">Local Market</p>
+</div>
+</div>
+<div class="bg-[#FFF8E1] px-4 py-2 rounded-xl text-right">
+<p class="text-[9px] uppercase font-bold text-tertiary-container tracking-wider mb-0.5">Estimated Net</p>
+<p class="text-primary font-bold text-lg leading-none">₹2,140</p>
+</div>
+</div>
+<div class="grid grid-cols-2 gap-4 pt-4 border-t border-surface-container text-xs">
+<div class="flex flex-col gap-1">
+<span class="text-on-surface-variant uppercase text-[10px] font-semibold tracking-tighter">Mandi Price</span>
+<span class="font-bold text-on-surface">₹2,250 <span class="font-normal text-[10px]">/ quintal</span></span>
+</div>
+<div class="flex flex-col gap-1 text-right">
+<span class="text-on-surface-variant uppercase text-[10px] font-semibold tracking-tighter">Transport</span>
+<span class="font-bold text-error">₹110</span>
+</div>
+</div>
+</div>
+</section>
+</main>
+<!-- Bottom Navigation Bar -->
+<nav class="fixed bottom-0 left-0 w-full bg-white dark:bg-zinc-950 flex justify-around items-center px-6 pb-6 pt-3 z-50 rounded-t-3xl shadow-[0_-8px_24px_rgba(0,0,0,0.06)]">
+<a class="flex flex-col items-center justify-center text-[#666666] dark:text-zinc-500 px-5 py-2 hover:text-[#0d631b] dark:hover:text-[#4caf50] transition-all active:scale-90 duration-200" href="#">
+<span class="material-symbols-outlined" data-icon="home">home</span>
+<span class="font-work-sans text-[10px] font-semibold uppercase tracking-wider">Home</span>
+</a>
+<a class="flex flex-col items-center justify-center bg-[#0d631b]/10 dark:bg-[#0d631b]/20 text-[#0d631b] dark:text-[#4caf50] rounded-2xl px-5 py-2 active:scale-90 duration-200" href="#">
+<span class="material-symbols-outlined" data-icon="storefront" style="font-variation-settings: 'FILL' 1;">storefront</span>
+<span class="font-work-sans text-[10px] font-semibold uppercase tracking-wider">Mandis</span>
+</a>
+<a class="flex flex-col items-center justify-center text-[#666666] dark:text-zinc-500 px-5 py-2 hover:text-[#0d631b] dark:hover:text-[#4caf50] transition-all active:scale-90 duration-200" href="#">
+<span class="material-symbols-outlined" data-icon="wb_sunny">wb_sunny</span>
+<span class="font-work-sans text-[10px] font-semibold uppercase tracking-wider">Weather</span>
+</a>
+<a class="flex flex-col items-center justify-center text-[#666666] dark:text-zinc-500 px-5 py-2 hover:text-[#0d631b] dark:hover:text-[#4caf50] transition-all active:scale-90 duration-200" href="#">
+<span class="material-symbols-outlined" data-icon="person">person</span>
+<span class="font-work-sans text-[10px] font-semibold uppercase tracking-wider">Profile</span>
+</a>
+</nav>
+</body></html>

@@ -5,16 +5,18 @@ import {
   StyleSheet, 
   TextInput, 
   TouchableOpacity, 
-  FlatList, 
   ActivityIndicator,
-  ScrollView
+  ScrollView,
+  SafeAreaView,
+  Platform
 } from 'react-native';
 import Slider from '@react-native-community/slider';
-import { Ionicons } from '@expo/vector-icons';
+import { MaterialIcons } from '@expo/vector-icons';
 import Toast from 'react-native-toast-message';
 import { getNearbyMandis } from '../api/market';
 import RankedMandiCard from '../components/RankedMandiCard';
 import EmptyState from '../components/EmptyState';
+import { theme } from '../theme';
 
 const NearbyMandisScreen = ({ navigation }) => {
   const [location, setLocation] = useState('Nashik');
@@ -58,57 +60,79 @@ const NearbyMandisScreen = ({ navigation }) => {
   };
 
   return (
-    <View style={styles.container}>
+    <SafeAreaView style={styles.safeArea}>
       <View style={styles.header}>
-        <TouchableOpacity style={styles.backBtn} onPress={() => navigation.goBack()}>
-          <Ionicons name="arrow-back" size={24} color="#333" />
+        <TouchableOpacity 
+          style={styles.backBtn} 
+          onPress={() => navigation.goBack()}
+          activeOpacity={0.7}
+        >
+          <MaterialIcons name="arrow-back" size={24} color={theme.colors.primary} />
         </TouchableOpacity>
         <Text style={styles.headerTitle}>Nearby Mandis</Text>
       </View>
 
-      <ScrollView style={styles.form} keyboardShouldPersistTaps="handled">
-        <View style={styles.section}>
-          <Text style={styles.label}>Your Location</Text>
-          <TextInput 
-            style={styles.input} 
-            placeholder="e.g. Nashik, Maharashtra" 
-            value={location}
-            onChangeText={setLocation}
-          />
-          
-          <Text style={styles.label}>Crop Type</Text>
-          <TextInput 
-            style={styles.input} 
-            placeholder="e.g. Tomato, Wheat" 
-            value={commodity}
-            onChangeText={setCommodity}
-          />
-
-          <View style={styles.sliderHeader}>
-            <Text style={styles.label}>Search Radius</Text>
-            <Text style={styles.radiusValue}>{radius} km</Text>
+      <ScrollView style={styles.container} contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false}>
+        
+        {/* Input Card */}
+        <View style={styles.inputCard}>
+          <View style={styles.inputGroup}>
+            <Text style={styles.label}>YOUR LOCATION</Text>
+            <View style={styles.inputWrapper}>
+              <MaterialIcons name="location-on" size={20} color={theme.colors.primary} style={styles.inputIcon} />
+              <TextInput 
+                style={styles.input} 
+                placeholder="e.g. Nashik, Maharashtra" 
+                placeholderTextColor={theme.colors.onSurfaceVariant}
+                value={location}
+                onChangeText={setLocation}
+              />
+            </View>
           </View>
-          <Slider
-            style={styles.slider}
-            minimumValue={50}
-            maximumValue={200}
-            step={10}
-            value={radius}
-            onValueChange={setRadius}
-            minimumTrackTintColor="#2E7D32"
-            maximumTrackTintColor="#EEE"
-            thumbTintColor="#2E7D32"
-          />
+
+          <View style={styles.inputGroup}>
+            <Text style={styles.label}>CROP TYPE</Text>
+            <View style={styles.inputWrapper}>
+              <MaterialIcons name="agriculture" size={20} color={theme.colors.primary} style={styles.inputIcon} />
+              <TextInput 
+                style={styles.input} 
+                placeholder="e.g. Tomato, Wheat"
+                placeholderTextColor={theme.colors.onSurfaceVariant}
+                value={commodity}
+                onChangeText={setCommodity}
+              />
+            </View>
+          </View>
+
+          <View style={styles.inputGroup}>
+            <View style={styles.sliderHeader}>
+              <Text style={styles.label}>SEARCH RADIUS</Text>
+              <Text style={styles.radiusValue}>{radius} km</Text>
+            </View>
+            <Slider
+              style={styles.slider}
+              minimumValue={50}
+              maximumValue={500}
+              step={10}
+              value={radius}
+              onValueChange={setRadius}
+              minimumTrackTintColor={theme.colors.primary}
+              maximumTrackTintColor={theme.colors.surfaceContainerHighest}
+              thumbTintColor={theme.colors.primary}
+            />
+          </View>
 
           <TouchableOpacity 
             style={[styles.searchBtn, (loading || !location || !commodity) && styles.disabledBtn]} 
             onPress={handleSearch}
             disabled={loading}
+            activeOpacity={0.9}
           >
-            {loading ? <ActivityIndicator color="#FFF" /> : <Text style={styles.searchBtnText}>Find Best Mandis</Text>}
+            {loading ? <ActivityIndicator color={theme.colors.onPrimaryContainer} /> : <Text style={styles.searchBtnText}>Find Best Mandis</Text>}
           </TouchableOpacity>
         </View>
 
+        {/* Results Section */}
         {results.length > 0 && (
           <View style={styles.resultsHeader}>
             <Text style={styles.resultsTitle}>Recommended Markets</Text>
@@ -117,21 +141,20 @@ const NearbyMandisScreen = ({ navigation }) => {
         )}
 
         {results.map((item, index) => (
-          <View key={index} style={styles.cardWrapper}>
-            <RankedMandiCard 
-              rank={index + 1}
-              mandi={item.market}
-              district={item.district || item.state}
-              price={item.modal_price}
-              transportCost={item.transport_cost}
-              netPrice={item.net_price}
-            />
-          </View>
+          <RankedMandiCard 
+            key={index}
+            rank={index + 1}
+            mandi={item.market}
+            district={item.district || item.state}
+            price={item.modal_price}
+            transportCost={item.transport_cost}
+            netPrice={item.net_price}
+          />
         ))}
 
         {!loading && (results.length === 0 || error) && (
           <EmptyState 
-            icon="📍" 
+            icon="location-off" 
             title={error ? "Search Error" : "No mandis nearby"} 
             subtitle={error ? error : "Try increasing the search radius or check for different crops."} 
           />
@@ -143,55 +166,145 @@ const NearbyMandisScreen = ({ navigation }) => {
           </Text>
         )}
         
-        <View style={{ height: 40 }} />
+        {/* Bottom padding for tab bar */}
+        <View style={{height: 100}} />
       </ScrollView>
-    </View>
+    </SafeAreaView>
   );
 };
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#F5F5F5' },
-  header: { 
-    height: 100, 
-    flexDirection: 'row', 
-    alignItems: 'center', 
-    paddingTop: 40, 
-    paddingHorizontal: 20, 
-    backgroundColor: '#FFF' 
+  safeArea: {
+    flex: 1,
+    backgroundColor: theme.colors.surfaceContainerLow,
+    paddingTop: Platform.OS === 'android' ? 40 : 0,
   },
-  backBtn: { padding: 8 },
-  headerTitle: { fontSize: 20, fontWeight: 'bold', marginLeft: 10, color: '#333' },
-  form: { flex: 1 },
-  section: { padding: 20, backgroundColor: '#FFF', borderBottomWidth: 1, borderBottomColor: '#EEE' },
-  label: { fontSize: 14, fontWeight: 'bold', color: '#666', marginBottom: 8 },
-  input: { 
-    height: 48, 
-    backgroundColor: '#FAFAFA', 
-    borderRadius: 8, 
-    borderWidth: 1, 
-    borderColor: '#EEE', 
-    paddingHorizontal: 16, 
-    marginBottom: 20,
-    fontSize: 15
-  },
-  sliderHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
-  radiusValue: { color: '#2E7D32', fontWeight: 'bold' },
-  slider: { width: '100%', height: 40, marginBottom: 20 },
-  searchBtn: { 
-    backgroundColor: '#2E7D32', 
-    height: 50, 
-    borderRadius: 8, 
-    justifyContent: 'center', 
+  header: {
+    flexDirection: 'row',
     alignItems: 'center',
-    elevation: 2
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    backgroundColor: theme.colors.surfaceContainerLow,
+    zIndex: 10,
   },
-  disabledBtn: { backgroundColor: '#A5D6A7' },
-  searchBtnText: { color: '#FFF', fontWeight: 'bold', fontSize: 16 },
-  resultsHeader: { paddingHorizontal: 20, paddingTop: 20, marginBottom: 10 },
-  resultsTitle: { fontSize: 18, fontWeight: 'bold', color: '#333' },
-  note: { fontSize: 12, color: '#9E9E9E', marginTop: 4 },
-  cardWrapper: { paddingHorizontal: 20 },
-  bottomNote: { padding: 20, fontSize: 11, color: '#999', textAlign: 'center', fontStyle: 'italic' }
+  backBtn: {
+    padding: 8,
+    marginLeft: -8,
+  },
+  headerTitle: {
+    fontSize: 20,
+    fontWeight: '800',
+    color: theme.colors.primary,
+    letterSpacing: -0.5,
+    marginLeft: 8,
+  },
+  container: {
+    flex: 1,
+  },
+  content: {
+    paddingHorizontal: 20,
+    paddingTop: 16,
+    gap: 24,
+  },
+  inputCard: {
+    backgroundColor: theme.colors.surfaceContainerLowest,
+    borderRadius: 12,
+    padding: 24,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.04,
+    shadowRadius: 20,
+    elevation: 2,
+    gap: 20,
+  },
+  inputGroup: {
+    gap: 4,
+  },
+  label: {
+    fontSize: 10,
+    fontWeight: '700',
+    color: theme.colors.onSurfaceVariant,
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
+    marginLeft: 4,
+  },
+  inputWrapper: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: theme.colors.surfaceContainerHighest,
+    borderRadius: 8,
+    paddingHorizontal: 16,
+    height: 48,
+  },
+  inputIcon: {
+    marginRight: 8,
+  },
+  input: {
+    flex: 1,
+    fontSize: 16,
+    fontWeight: '500',
+    color: theme.colors.onSurface,
+  },
+  sliderHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 8,
+  },
+  radiusValue: {
+    fontSize: 14,
+    fontWeight: '700',
+    color: theme.colors.primary,
+  },
+  slider: {
+    width: '100%',
+    height: 40,
+  },
+  searchBtn: {
+    backgroundColor: theme.colors.primaryContainer,
+    height: 56,
+    borderRadius: 999,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginTop: 8,
+    shadowColor: theme.colors.primary,
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.2,
+    shadowRadius: 12,
+    elevation: 4,
+  },
+  disabledBtn: {
+    backgroundColor: theme.colors.surfaceVariant,
+    shadowOpacity: 0,
+    elevation: 0,
+  },
+  searchBtnText: {
+    color: theme.colors.onPrimaryContainer,
+    fontWeight: '800',
+    fontSize: 16,
+  },
+  resultsHeader: {
+    paddingHorizontal: 4,
+  },
+  resultsTitle: {
+    fontSize: 20,
+    fontWeight: '800',
+    color: theme.colors.onSurface,
+    letterSpacing: -0.5,
+  },
+  note: {
+    fontSize: 12,
+    fontWeight: '500',
+    color: theme.colors.onSurfaceVariant,
+    marginTop: 4,
+  },
+  bottomNote: {
+    paddingVertical: 16,
+    fontSize: 11,
+    color: theme.colors.outline,
+    textAlign: 'center',
+    fontStyle: 'italic',
+  }
 });
 
 export default NearbyMandisScreen;

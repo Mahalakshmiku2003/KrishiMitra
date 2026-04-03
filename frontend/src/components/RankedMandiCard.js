@@ -1,38 +1,50 @@
 import React from 'react';
 import { View, Text, StyleSheet } from 'react-native';
+import { theme } from '../theme';
 
 const RankedMandiCard = ({ rank, mandi, district, price, transportCost, netPrice }) => {
   const getBadgeColor = () => {
     if (rank === 1) return '#FFD700'; // Gold
-    if (rank === 2) return '#C0C0C0'; // Silver
+    if (rank === 2) return '#9E9E9E'; // Silver
     if (rank === 3) return '#CD7F32'; // Bronze
-    return '#E0E0E0'; // Grey
+    return theme.colors.outline; 
   };
 
+  const badgeColor = getBadgeColor();
+
   return (
-    <View style={styles.card}>
-      <View style={styles.row}>
-        <View style={[styles.badge, { backgroundColor: getBadgeColor() }]}>
-          <Text style={styles.badgeText}>#{rank}</Text>
+    <View style={[styles.card, { borderLeftColor: badgeColor }]}>
+      <View style={styles.topSection}>
+        <View style={styles.mandiInfo}>
+          <View style={[styles.rankBadge, { backgroundColor: badgeColor }]}>
+            <Text style={styles.rankText}>#{rank}</Text>
+          </View>
+          <View>
+            <Text style={styles.mandiName}>{mandi}</Text>
+            <Text style={styles.districtName}>{district}</Text>
+          </View>
         </View>
-        <View style={styles.info}>
-          <Text style={styles.mandiName}>{mandi}</Text>
-          <Text style={styles.district}>{district}</Text>
+        
+        <View style={styles.netPriceBadge}>
+          <Text style={styles.netPriceLabel}>ESTIMATED NET</Text>
+          <Text style={styles.netPriceValue}>
+            ₹{Number(netPrice).toLocaleString('en-IN')}
+          </Text>
         </View>
       </View>
 
-      <View style={styles.priceRow}>
-        <View>
-          <Text style={styles.label}>Mandi Price</Text>
-          <Text style={styles.value}>₹ {price}</Text>
+      <View style={styles.bottomSection}>
+        <View style={styles.detailColumn}>
+          <Text style={styles.detailLabel}>MANDI PRICE</Text>
+          <Text style={styles.detailValue}>
+            ₹{Number(price).toLocaleString('en-IN')} <Text style={styles.detailUnit}>/ quintal</Text>
+          </Text>
         </View>
-        <View>
-          <Text style={styles.label}>Transport</Text>
-          <Text style={styles.value}>₹ {transportCost}</Text>
-        </View>
-        <View style={styles.netContainer}>
-          <Text style={styles.netLabel}>Net Price</Text>
-          <Text style={styles.netValue}>₹ {netPrice}</Text>
+        <View style={[styles.detailColumn, { alignItems: 'flex-end' }]}>
+          <Text style={styles.detailLabel}>TRANSPORT</Text>
+          <Text style={[styles.detailValue, { color: theme.colors.error }]}>
+            ₹{Number(transportCost).toLocaleString('en-IN')}
+          </Text>
         </View>
       </View>
     </View>
@@ -41,79 +53,102 @@ const RankedMandiCard = ({ rank, mandi, district, price, transportCost, netPrice
 
 const styles = StyleSheet.create({
   card: {
-    backgroundColor: '#FFFFFF',
+    backgroundColor: theme.colors.surfaceContainerLowest,
     borderRadius: 12,
-    padding: 16,
+    padding: 20,
     marginBottom: 16,
-    elevation: 3,
+    borderLeftWidth: 4,
     shadowColor: '#000',
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.03,
+    shadowRadius: 16,
+    elevation: 2,
   },
-  row: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginBottom: 16,
-  },
-  badge: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginRight: 12,
-  },
-  badgeText: {
-    fontWeight: 'bold',
-    fontSize: 14,
-    color: '#FFF',
-  },
-  info: {
-    flex: 1,
-  },
-  mandiName: {
-    fontSize: 16,
-    fontWeight: 'bold',
-    color: '#333',
-  },
-  district: {
-    fontSize: 13,
-    color: '#9E9E9E',
-  },
-  priceRow: {
+  topSection: {
     flexDirection: 'row',
     justifyContent: 'space-between',
+    alignItems: 'flex-start',
+    marginBottom: 20,
+  },
+  mandiInfo: {
+    flexDirection: 'row',
     alignItems: 'center',
-    borderTopWidth: 1,
-    borderTopColor: '#F5F5F5',
-    paddingTop: 12,
+    gap: 12,
   },
-  label: {
-    fontSize: 11,
-    color: '#9E9E9E',
-    marginBottom: 2,
+  rankBadge: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    alignItems: 'center',
+    justifyContent: 'center',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 1,
   },
-  value: {
+  rankText: {
+    color: '#FFF',
+    fontSize: 16,
+    fontWeight: '800',
+  },
+  mandiName: {
+    fontSize: 18,
+    fontWeight: '800',
+    color: theme.colors.onSurface,
+    lineHeight: 22,
+  },
+  districtName: {
     fontSize: 14,
-    color: '#666',
+    fontWeight: '500',
+    color: theme.colors.onSurfaceVariant,
   },
-  netContainer: {
+  netPriceBadge: {
     backgroundColor: '#FFF8E1',
     paddingHorizontal: 12,
     paddingVertical: 8,
-    borderRadius: 8,
-    alignItems: 'center',
+    borderRadius: 12,
+    alignItems: 'flex-end',
   },
-  netLabel: {
-    fontSize: 10,
-    color: '#F9A825',
-    fontWeight: 'bold',
+  netPriceLabel: {
+    fontSize: 9,
+    fontWeight: '800',
+    color: theme.colors.tertiaryContainer,
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
     marginBottom: 2,
   },
-  netValue: {
-    fontSize: 15,
-    fontWeight: 'bold',
-    color: '#F9A825',
+  netPriceValue: {
+    fontSize: 18,
+    fontWeight: '800',
+    color: theme.colors.primary,
+    lineHeight: 22,
+  },
+  bottomSection: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    paddingTop: 16,
+    borderTopWidth: 1,
+    borderTopColor: theme.colors.surfaceContainer,
+  },
+  detailColumn: {
+    gap: 4,
+  },
+  detailLabel: {
+    fontSize: 10,
+    fontWeight: '700',
+    color: theme.colors.onSurfaceVariant,
+    textTransform: 'uppercase',
+    letterSpacing: -0.5,
+  },
+  detailValue: {
+    fontSize: 14,
+    fontWeight: '700',
+    color: theme.colors.onSurface,
+  },
+  detailUnit: {
+    fontSize: 10,
+    fontWeight: '400',
   },
 });
 
