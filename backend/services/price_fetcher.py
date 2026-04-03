@@ -9,9 +9,9 @@ from bs4 import BeautifulSoup
 from sqlalchemy.orm import Session
 from sqlalchemy.dialects.postgresql import insert
 
-from models.price import MandiPrice
-from services.db import SessionLocal
-from services.market_service import karnataka_rows_exist
+from backend.models.price import MandiPrice
+from backend.services.db import SessionLocal
+from backend.services.market_service import karnataka_rows_exist
 
 DATA_GOV_API_KEY = os.getenv("DATA_GOV_API_KEY")
 DATA_GOV_RESOURCE_ID = "9ef84268-d588-465a-a308-a864a43d0070"

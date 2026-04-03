@@ -218,6 +218,13 @@ async def whatsapp_webhook(request: Request):
             name = normalize(data.get("name"))
             location = normalize(data.get("location"))
             crop = normalize(data.get("crop"))
+            # fallback: extract from message directly
+            if not crop:
+                message_lower = message.lower()
+                if "tomato" in message_lower:
+                    crop = "tomato"
+                elif "onion" in message_lower:
+                    crop = "onion"
             disease = normalize(data.get("disease"))
 
             if disease_result:

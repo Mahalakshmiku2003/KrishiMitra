@@ -8,8 +8,8 @@ if BACKEND_DIR not in sys.path:
     sys.path.insert(0, BACKEND_DIR)
 
 from sqlalchemy.dialects.postgresql import insert
-from models.price import MandiPrice
-from services.db import SessionLocal
+from backend.models.price import MandiPrice
+from backend.services.db import SessionLocal
 
 db = SessionLocal()
 

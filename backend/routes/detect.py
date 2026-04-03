@@ -1,8 +1,8 @@
 from fastapi import APIRouter, UploadFile, File
 from fastapi.responses import JSONResponse
 from PIL import Image
-from services.yolo_service import get_model
-from services.file_service import save_upload, cleanup
+from backend.services.yolo_service import get_model
+from backend.services.file_service import save_upload, cleanup
 
 router = APIRouter()
 

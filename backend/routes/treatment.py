@@ -1,6 +1,6 @@
 from fastapi import APIRouter, Form
 from fastapi.responses import JSONResponse
-from services.disease_service import lookup_static, lookup_claude
+from backend.services.disease_service import lookup_static, lookup_claude
 
 router = APIRouter()
 

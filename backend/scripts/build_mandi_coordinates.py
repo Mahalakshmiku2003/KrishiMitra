@@ -20,7 +20,7 @@ BACKEND_DIR = os.path.dirname(CURRENT_DIR)
 if BACKEND_DIR not in sys.path:
     sys.path.insert(0, BACKEND_DIR)
 
-from services.db import SessionLocal
+from backend.services.db import SessionLocal
 from sqlalchemy import text
 
 OUTPUT_FILE = os.path.join(BACKEND_DIR, "data", "mandi_coordinates.json")

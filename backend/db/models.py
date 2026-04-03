@@ -13,57 +13,58 @@ from sqlalchemy.dialects.postgresql import ARRAY, JSONB
 from sqlalchemy.ext.mutable import MutableDict, MutableList
 from sqlalchemy.sql import func
 from sqlalchemy.orm import validates
+
 from backend.db.database import Base
-
-
-def safe_dict(value):
-    if isinstance(value, dict):
-        return value
-    return {}
 
 
 class Farmer(Base):
     __tablename__ = "farmers"
 
     phone = Column(String, primary_key=True, index=True)
-    name = Column(String)
+    name = Column(String, nullable=True)
+
     crops = Column(
         MutableList.as_mutable(ARRAY(String)),
         nullable=False,
         default=list,
         server_default=text("'{}'"),
     )
-    location = Column(String)
+
+    location = Column(String, nullable=True)
+
     history = Column(
         MutableList.as_mutable(JSONB),
         nullable=False,
         default=list,
         server_default=text("'[]'::jsonb"),
     )
+
     messages = Column(
         MutableList.as_mutable(JSONB),
         nullable=False,
         default=list,
         server_default=text("'[]'::jsonb"),
     )
+
     created_at = Column(DateTime(timezone=True), server_default=func.now())
-    soil_type = Column(String)
-    last_seen = Column(DateTime(timezone=True))
+    soil_type = Column(String, nullable=True)
+    last_seen = Column(DateTime(timezone=True), nullable=True)
+
     last_detection = Column(
         MutableDict.as_mutable(JSONB),
         nullable=False,
         default=dict,
         server_default=text("'{}'::jsonb"),
     )
-    # Real language column — NULL means not yet selected by farmer
+
+    lat = Column(Float, nullable=True)
+    lng = Column(Float, nullable=True)
+
     language = Column(String, nullable=True, default=None)
 
     @validates("last_detection")
     def validate_last_detection(self, key, value):
-        if not isinstance(value, dict):
-            print("❌ AUTO-FIX last_detection:", value)
-            return {}
-        return value
+        return value if isinstance(value, dict) else {}
 
     @property
     def phone_number(self):
@@ -98,4 +99,21 @@ class MandiPrice(Base):
             name="uq_market_commodity_date",
         ),
         Index("ix_mandi_prices_commodity_district", "commodity", "district"),
+    )
+
+
+class InboundMessage(Base):
+    __tablename__ = "inbound_messages"
+
+    provider_message_id = Column(String, primary_key=True)
+    phone = Column(String, nullable=False, index=True)
+    body = Column(String, nullable=True)
+    status = Column(String, nullable=False, default="processing")
+    response_xml = Column(String, nullable=True)
+    error = Column(String, nullable=True)
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+    processed_at = Column(DateTime(timezone=True), nullable=True)
+
+    __table_args__ = (
+        Index("ix_inbound_messages_phone_created", "phone", "created_at"),
     )

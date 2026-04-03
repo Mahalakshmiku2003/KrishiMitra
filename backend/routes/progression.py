@@ -1,7 +1,7 @@
 from fastapi import APIRouter
 from fastapi.responses import JSONResponse
 from pydantic import BaseModel
-from services.progression_service import predict_progression
+from backend.services.progression_service import predict_progression
 
 router = APIRouter()
 

@@ -5,15 +5,15 @@ from fastapi.responses import JSONResponse
 from pydantic import BaseModel
 from sqlalchemy.orm import Session
 
-from services.db import get_db
-from services.market_service import (
+from backend.services.db import get_db
+from backend.services.market_service import (
     get_latest_prices,
     get_all_latest_prices,
     find_nearby_mandis,
 )
-from services.prediction_service import predict_prices
-from services.geocode_service import geocode_location
-from services.price_fetcher import run_daily_fetch
+from backend.services.prediction_service import predict_prices
+from backend.services.geocode_service import geocode_location
+from backend.services.price_fetcher import run_daily_fetch
 
 router = APIRouter(prefix="/market", tags=["market"])
 

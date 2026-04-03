@@ -1,7 +1,7 @@
 import os, random
 from datetime import datetime, timedelta
 from sqlalchemy.orm import Session
-from services.market_service import get_price_history, get_all_latest_prices
+from backend.services.market_service import get_price_history, get_all_latest_prices
 
 SEASONAL_TRENDS = {
     "Tomato":  [1.2, 1.1, 0.9, 0.8, 0.9, 1.1, 1.3, 1.2, 1.0, 0.9, 0.8, 1.0],
@@ -26,7 +26,7 @@ def predict_prices(commodity: str, market: str, db: Session, days_ahead: int = 7
         model_used    = "historical_trend"
     else:
         # Not enough history yet — use latest price from DB or API
-        from services.market_service import get_all_latest_prices
+        from backend.services.market_service import get_all_latest_prices
         all_prices = get_all_latest_prices(commodity, db)
         if all_prices:
             modal_prices  = [p["modal_price"] for p in all_prices]

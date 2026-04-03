@@ -2,7 +2,7 @@ import os, base64, json, re
 from fastapi import APIRouter, UploadFile, File, Form
 from fastapi.responses import JSONResponse
 from groq import Groq
-from services.file_service import save_upload, cleanup
+from backend.services.file_service import save_upload, cleanup
 
 router = APIRouter()
 

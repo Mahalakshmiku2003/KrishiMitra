@@ -5,8 +5,8 @@ import os
 from dotenv import load_dotenv
 load_dotenv()
 print("DB URL:", os.getenv("DATABASE_URL"))
-from services.db import engine, Base
-from models.price import MandiPrice  # importing the model registers it with Base
+from backend.services.db import engine, Base
+from backend.models.price import MandiPrice  # importing the model registers it with Base
 
 Base.metadata.create_all(bind=engine)
 print("Tables created successfully on Supabase.")

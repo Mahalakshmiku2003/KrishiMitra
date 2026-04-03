@@ -170,57 +170,6 @@ async def get_mandi_price_data_from_db(db, crop: str, location: str) -> dict:
     location = _normalize_location_term(location)
 
     if not crop:
-        return {"crop": crop, "location": location or "", "markets": []}
-
-    cache_key = (crop, location or "")
-    cached = mandi_price_cache.get(cache_key)
-    if cached:
-        cached_value, cached_at = cached
-        if time.time() - cached_at < MANDI_PRICE_CACHE_TTL:
-            return cached_value
-
-    location_terms = _extract_location_terms(location or "")
-
-    district_query = (
-        _build_latest_mandi_query(crop, location_terms, "district")
-        if location_terms
-        else None
-    )
-    state_query = (
-        _build_latest_mandi_query(crop, location_terms, "state")
-        if location_terms
-        else None
-    )
-    fallback_query = _build_latest_mandi_query(crop, [], None)
-
-    rows = []
-    if district_query is not None:
-        rows = (await db.execute(district_query)).scalars().all()
-
-    if not rows and state_query is not None:
-        rows = (await db.execute(state_query)).scalars().all()
-
-    if not rows:
-        rows = (await db.execute(fallback_query)).scalars().all()
-
-    print("📊 TOTAL ROWS FROM DB:", len(rows))
-
-    mandi_payload = {
-        "crop": crop,
-        "location": location or "",
-        "markets": _serialize_mandi_rows(rows),
-    }
-    mandi_price_cache[cache_key] = (mandi_payload, time.time())
-    if len(mandi_price_cache) > 200:
-        mandi_price_cache.clear()
-    return mandi_payload
-
-
-async def get_mandi_price_data_from_db(db, crop: str, location: str) -> dict:
-    crop = _normalize_location_term(crop)
-    location = _normalize_location_term(location)
-
-    if not crop:
         return {"crop": crop, "location": location or "", "markets": [], "source": "none"}
 
     cache_key = (crop, location or "")

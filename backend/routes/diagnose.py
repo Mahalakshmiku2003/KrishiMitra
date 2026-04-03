@@ -1,10 +1,10 @@
 from fastapi import APIRouter, UploadFile, File, Form
 from fastapi.responses import JSONResponse
 from PIL import Image
-from services.yolo_service import get_model
-from services.severity_service import calculate_severity, get_overall_severity
-from services.disease_service import lookup_static, lookup_claude
-from services.file_service import save_upload, cleanup
+from backend.services.yolo_service import get_model
+from backend.services.severity_service import calculate_severity, get_overall_severity
+from backend.services.disease_service import lookup_static, lookup_claude
+from backend.services.file_service import save_upload, cleanup
 
 router = APIRouter()
 

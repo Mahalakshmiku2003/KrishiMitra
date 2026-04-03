@@ -1,8 +1,8 @@
 from fastapi import APIRouter
 from fastapi.responses import JSONResponse
 from pydantic import BaseModel
-from services.severity_service import calculate_severity, get_overall_severity
-from services.disease_service import lookup_static
+from backend.services.severity_service import calculate_severity, get_overall_severity
+from backend.services.disease_service import lookup_static
 
 router = APIRouter()
 

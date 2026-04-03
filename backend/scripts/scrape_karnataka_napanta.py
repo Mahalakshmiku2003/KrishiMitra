@@ -18,8 +18,8 @@ BACKEND_DIR = os.path.dirname(CURRENT_DIR)
 if BACKEND_DIR not in sys.path:
     sys.path.insert(0, BACKEND_DIR)
 
-from models.price import MandiPrice
-from services.db import SessionLocal
+from backend.models.price import MandiPrice
+from backend.services.db import SessionLocal
 
 BASE_URL = "https://www.napanta.com"
 SEED_URLS = [
