@@ -13,7 +13,7 @@ async def check_new_detections():
     try:
         result = db.execute(text("""
             SELECT * FROM detections
-            WHERE severity = 5 
+            WHERE severity > 5
             AND spread = true
             AND processed = false
         """)).mappings().all()

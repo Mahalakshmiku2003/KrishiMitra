@@ -17,7 +17,8 @@ from agent.guardrails import check_message, check_image
 from services.location_state import _pending_location
 from services.db import SessionLocal
 
-from farmer_store import get_farmer_location, save_farmer_location
+from farmer_store import get_farmer_location, save_farmer_location, record_detection_if_outbreak
+from services.language_onboarding import maybe_handle_language_onboarding
 from services.market_service import find_nearest_from_json, find_best_mandi_for_commodity
 
 load_dotenv()
@@ -90,6 +91,14 @@ async def handle_incoming_message(form_data: dict) -> str:
         twiml.message(msg_check.reply)
         return str(twiml)
 
+    # ── 3b. Language preference (first contact: hi/hello or 1/2/3) ───────────
+    if num_media == 0:
+        lang_reply = maybe_handle_language_onboarding(phone, body)
+        if lang_reply is not None:
+            twiml = MessagingResponse()
+            twiml.message(lang_reply)
+            return str(twiml)
+
     # ── 4. Normal agent flow ─────────────────────────────────────────────────
     disease_result = None
     if image_path and os.path.exists(CLASSIFIER_PATH):
@@ -100,6 +109,9 @@ async def handle_incoming_message(form_data: dict) -> str:
         )
     elif image_path:
         print(f"[WhatsApp] Missing classifier at {CLASSIFIER_PATH}")
+
+    if disease_result:
+        record_detection_if_outbreak(phone, disease_result)
 
     reply = await process_message(
         farmer_id=phone,

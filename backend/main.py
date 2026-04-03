@@ -38,7 +38,7 @@ async def lifespan(app: FastAPI):
     )
     scheduler.add_job(
         check_new_detections,
-        trigger="interval", seconds=10,
+        trigger="interval", seconds=100,
         id="outbreak_monitor", replace_existing=True,
     )
 

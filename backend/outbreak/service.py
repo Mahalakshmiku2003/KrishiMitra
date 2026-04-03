@@ -54,7 +54,12 @@ Stay alert 🚜"""
 
 
 async def handle_new_detection(db, detection):
-    if detection["severity"] != 5 or not detection["spread"]:
+    sev = detection.get("severity")
+    try:
+        sev = int(sev) if sev is not None else None
+    except (TypeError, ValueError):
+        sev = None
+    if sev is None or sev <= 5 or not detection.get("spread"):
         return {"status": "no_alert_needed"}
 
     nearby_farmers = get_nearby_farmers(db, detection["lat"], detection["lng"], radius_km=50)

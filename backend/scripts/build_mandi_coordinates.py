@@ -49,7 +49,6 @@ def fetch_unique_markets():
             WHERE market IS NOT NULL
               AND district IS NOT NULL
               AND state IS NOT NULL
-              AND LOWER(state) = 'karnataka'
             ORDER BY district, market
         """))
         return [dict(row._mapping) for row in result.fetchall()]
@@ -59,7 +58,7 @@ def fetch_unique_markets():
 
 def build_coordinates():
     unique_markets = fetch_unique_markets()
-    print(f"Found {len(unique_markets)} unique Karnataka markets")
+    print(f"Found {len(unique_markets)} unique markets")
 
     coordinates = []
 

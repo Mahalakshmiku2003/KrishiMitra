@@ -14,7 +14,7 @@ from services.location_state import _pending_location
 load_dotenv(os.path.join(os.path.dirname(__file__), ".env"))
 # Fallback to backend/.env when running from project root.
 load_dotenv(os.path.join(os.path.dirname(os.path.dirname(__file__)), ".env"))
-from farmer_store import get_farmer_location
+from farmer_store import get_farmer_location, get_farmer_language, normalize_phone
 client = AsyncGroq(api_key=os.getenv("GROQ_API_KEY"))
 
 memory_store = {}
@@ -89,8 +89,16 @@ async def process_message(
             message = f"{context}\nFarmer message: {message or 'Please help me'}"
 
         history = get_history(farmer_id)
+        system_prompt = SYSTEM_PROMPT
+        pref = get_farmer_language(normalize_phone(farmer_id))
+        if pref:
+            lang_names = {"hindi": "Hindi", "kannada": "Kannada", "english": "English"}
+            system_prompt += (
+                f"\n\nFarmer registered language preference: {lang_names.get(pref, pref)}. "
+                "Reply in this language."
+            )
         messages = (
-            [{"role": "system", "content": SYSTEM_PROMPT}]
+            [{"role": "system", "content": system_prompt}]
             + history
             + [{"role": "user", "content": message}]
         )

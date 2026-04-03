@@ -18,6 +18,8 @@ from agent.diagnose import diagnose_image
 # ✅ NEW: DB imports
 from db.deps import get_db
 from db.crud import upsert_farmer, add_crop, add_disease
+from services.language_onboarding import maybe_handle_language_onboarding
+from farmer_store import record_detection_if_outbreak
 
 router = APIRouter()
 
@@ -126,6 +128,16 @@ async def whatsapp_webhook(request: Request):
         disease_result = None
 
         # ─────────────────────────────
+        # 🌐 Language preference (text-only; before image/DB/agent)
+        # ─────────────────────────────
+        if num_media == 0:
+            lang_reply = maybe_handle_language_onboarding(farmer_id, message)
+            if lang_reply is not None:
+                twiml = MessagingResponse()
+                twiml.message(lang_reply)
+                return Response(content=str(twiml), media_type="application/xml")
+
+        # ─────────────────────────────
         # 📸 Image Handling (existing)
         # ─────────────────────────────
         if num_media > 0 and media_url:
@@ -138,6 +150,7 @@ async def whatsapp_webhook(request: Request):
 
                 print(f"🦠 Disease: {disease_result['disease']}")
                 print("🧪 Disease Result:", disease_result)
+                record_detection_if_outbreak(farmer_id, disease_result)
             if not message:
                 message = "I sent a photo of my crop"
 
@@ -150,13 +163,12 @@ async def whatsapp_webhook(request: Request):
             location = data.get("location")
             crop = data.get("crop")
             disease = data.get("disease")
-            language = data.get("language")
 
             # Override disease if image detected
             if disease_result:
                 disease = disease_result.get("disease")
 
-            await upsert_farmer(db, farmer_id, location=location, language=language)
+            await upsert_farmer(db, farmer_id, location=location)
 
             if crop:
                 await add_crop(db, farmer_id, crop)

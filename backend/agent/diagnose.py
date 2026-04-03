@@ -138,6 +138,30 @@ def get_progression(raw_name: str, bbox_pct: float) -> dict:
     }
 
 
+def _severity_numeric(level: str, bbox_pct: float, conf: float) -> int:
+    """
+    Map diagnosis to 1–10 for detections.severity.
+    Mild is capped at 5 so only Moderate+ can exceed the outbreak threshold (>5).
+    """
+    base = {"Mild": 3, "Moderate": 6, "Severe": 9}.get(level, 5)
+    bump = int(min(2, bbox_pct / 20))
+    score = min(10, base + bump)
+    if level == "Mild":
+        score = min(5, score)
+    if conf > 0.92 and level == "Severe":
+        score = min(10, score + 1)
+    return max(1, score)
+
+
+def _disease_spreads(raw_name: str, db_key: str) -> bool:
+    """True if this is not a healthy plant and progression DB says it spreads."""
+    if "healthy" in raw_name.lower():
+        return False
+    if not db_key or db_key not in PROGRESSION_DB:
+        return False
+    return PROGRESSION_DB[db_key].get("daily_spread_rate", 0) > 0
+
+
 def diagnose_image(
     image_path: str, classifier_path: str, detector_path: str = None
 ) -> dict:
@@ -181,6 +205,9 @@ def diagnose_image(
 
         # Get progression
         progression = get_progression(raw_name, bbox_pct)
+        severity_level = severity.get("level", "Moderate")
+        severity_score = _severity_numeric(severity_level, bbox_pct, conf)
+        spreads = _disease_spreads(raw_name, db_key)
 
         return {
             "disease": f"{crop} {disease}",
@@ -189,6 +216,8 @@ def diagnose_image(
             "confidence": f"{conf:.1%}",
             "confidence_num": conf,
             "severity": severity,
+            "severity_score": severity_score,
+            "spread": spreads,
             "boxes_found": boxes,
             "urgency": urgency,
             "pathogen": pathogen,

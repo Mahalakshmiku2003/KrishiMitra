@@ -9,22 +9,112 @@ from sqlalchemy import text
 from services.db import SessionLocal
 
 
+def normalize_phone(phone: str) -> str:
+    return (phone or "").replace("whatsapp:", "").strip()
+
+
+def get_farmer_language(phone: str) -> str | None:
+    """Returns stored language code (hindi/kannada/english) or None if unset."""
+    pid = normalize_phone(phone)
+    with SessionLocal() as db:
+        row = db.execute(
+            text("SELECT language FROM farmers WHERE phone = :phone"),
+            {"phone": pid},
+        ).fetchone()
+    if not row or row[0] is None:
+        return None
+    s = str(row[0]).strip()
+    return s if s else None
+
+
+def record_detection_if_outbreak(phone: str, disease_result: dict) -> None:
+    """
+    Insert into detections when severity_score > 5 and disease spreads (per progression DB).
+    Requires farmers row for FK — ensured via get_farmer.
+    """
+    if not disease_result or disease_result.get("error"):
+        return
+    sev = disease_result.get("severity_score")
+    spreads = disease_result.get("spread")
+    if sev is None or sev <= 5 or not spreads:
+        return
+
+    pid = normalize_phone(phone)
+    get_farmer(pid)  # ensure FK target exists
+
+    disease_name = disease_result.get("disease") or "Unknown"
+    crop_type = disease_result.get("crop") or "Unknown"
+    loc = get_farmer_location(pid)
+    lat = loc["lat"] if loc else None
+    lng = loc["lng"] if loc else None
+
+    with SessionLocal() as db:
+        db.execute(
+            text(
+                """
+                INSERT INTO detections
+                    (phone, disease_name, crop_type, severity, lat, lng, spread)
+                VALUES
+                    (:phone, :disease_name, :crop_type, :severity, :lat, :lng, :spread)
+                """
+            ),
+            {
+                "phone": pid,
+                "disease_name": disease_name,
+                "crop_type": crop_type,
+                "severity": int(sev),
+                "lat": lat,
+                "lng": lng,
+                "spread": True,
+            },
+        )
+        db.commit()
+
+
+def set_farmer_language(phone: str, language: str) -> None:
+    """Persist language on farmers row (upserts phone row if missing)."""
+    pid = normalize_phone(phone)
+    lang = (language or "").strip().lower()
+    if not lang:
+        return
+    with SessionLocal() as db:
+        db.execute(
+            text(
+                """
+                INSERT INTO farmers (phone, language, last_seen)
+                VALUES (:phone, :language, NOW())
+                ON CONFLICT (phone) DO UPDATE
+                SET language = EXCLUDED.language, last_seen = NOW()
+                """
+            ),
+            {"phone": pid, "language": lang},
+        )
+        db.commit()
+
+
 def get_farmer(phone: str) -> dict:
+    phone = normalize_phone(phone)
     with SessionLocal() as db:
         result = db.execute(
-            text("SELECT phone, name, crops, location, soil_type, history, messages FROM farmers WHERE phone = :phone"),
-            {"phone": phone}
+            text(
+                "SELECT phone, name, crops, location, soil_type, history, messages, language "
+                "FROM farmers WHERE phone = :phone"
+            ),
+            {"phone": phone},
         ).fetchone()
 
         if not result:
             db.execute(
                 text("INSERT INTO farmers (phone) VALUES (:phone) ON CONFLICT DO NOTHING"),
-                {"phone": phone}
+                {"phone": phone},
             )
             db.commit()
             result = db.execute(
-                text("SELECT phone, name, crops, location, soil_type, history, messages FROM farmers WHERE phone = :phone"),
-                {"phone": phone}
+                text(
+                    "SELECT phone, name, crops, location, soil_type, history, messages, language "
+                    "FROM farmers WHERE phone = :phone"
+                ),
+                {"phone": phone},
             ).fetchone()
 
     return {
@@ -35,6 +125,7 @@ def get_farmer(phone: str) -> dict:
         "soil_type": result[4] or "unknown",
         "history":   result[5] or [],
         "messages":  result[6] or [],
+        "language":  result[7] if len(result) > 7 else None,
     }
 
 
