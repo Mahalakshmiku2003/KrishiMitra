@@ -14,7 +14,8 @@ from backend.agent.tools import (
     get_disease_progression,
 )
 from backend.services.location_state import set_pending_location_action
-from backend.farmer_store import get_farmer_location, save_price_alert
+from backend.db.crud import _get_or_create_farmer, normalize, save_price_alert
+from backend.db.database import AsyncSessionLocal
 
 load_dotenv()
 client = AsyncGroq(api_key=os.getenv("GROQ_API_KEY"))
@@ -338,6 +339,18 @@ def _location_request_message(language: str) -> str:
 # ─── Tool orchestration ────────────────────────────────────────────────────────
 
 
+async def _saved_farmer_coordinates(farmer_id: str) -> dict | None:
+    pid = normalize((farmer_id or "").replace("whatsapp:", "").strip()) or ""
+    db = AsyncSessionLocal()
+    try:
+        farmer, _ = await _get_or_create_farmer(db, pid)
+        if farmer and farmer.lat is not None and farmer.lng is not None:
+            return {"lat": float(farmer.lat), "lng": float(farmer.lng)}
+    finally:
+        await db.close()
+    return None
+
+
 async def use_tools(
     farmer_id: str,
     message: str,
@@ -365,7 +378,11 @@ async def use_tools(
                 else "below"
             )
             target = float(m.group(2))
-            result = save_price_alert(farmer_id, crop, target, direction)
+            db = AsyncSessionLocal()
+            try:
+                result = await save_price_alert(db, farmer_id, crop, target, direction)
+            finally:
+                await db.close()
             return "__DIRECT_REPLY__", _format_alert_direct(
                 crop=crop,
                 target=target,
@@ -405,15 +422,14 @@ async def use_tools(
             }
             return "__DIRECT_REPLY__", msg.get(lang, msg["hindi"])
 
-        from backend.services.prediction_service import predict_prices
-        from backend.services.db import SessionLocal
+        from backend.services.prediction_service import predict_prices_async
 
         market = extract_location(text) or "default"
-        db = SessionLocal()
+        db = AsyncSessionLocal()
         try:
-            pred = predict_prices(crop, market, db)
+            pred = await predict_prices_async(crop, market, db)
         finally:
-            db.close()
+            await db.close()
 
         if pred.get("error"):
             return "__DIRECT_REPLY__", pred["error"]
@@ -446,7 +462,7 @@ async def use_tools(
 
         crop = extract_crop(text)
         city = extract_location(text)
-        saved = get_farmer_location(farmer_id)
+        saved = await _saved_farmer_coordinates(farmer_id)
 
         # Has GPS → use exact coordinate flow
         if saved and saved.get("lat") is not None:
@@ -503,9 +519,9 @@ async def use_tools(
 async def process_message(
     farmer_id: str,
     message: str,
-    disease_result: dict = None,
     language: str = "Hindi",
     history: list | None = None,
+    disease_result: dict | None = None,
 ) -> str:
     try:
         text = (message or "").strip()

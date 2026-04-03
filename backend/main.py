@@ -4,11 +4,10 @@ from fastapi.middleware.cors import CORSMiddleware
 
 load_dotenv()
 
+from backend.db import models  # noqa: F401
+from backend.db.database import Base, engine
 from backend.routes.whatsapp import router as whatsapp_router
-from backend.services.db import Base, engine
 from backend.scheduler import start_scheduler
-
-Base.metadata.create_all(bind=engine)
 
 app = FastAPI(title="KrishiMitra API", version="2.1.0")
 
@@ -24,6 +23,8 @@ app.include_router(whatsapp_router, tags=["WhatsApp"])
 
 @app.on_event("startup")
 async def startup_event():
+    async with engine.begin() as conn:
+        await conn.run_sync(Base.metadata.create_all)
     start_scheduler()
 
 

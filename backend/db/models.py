@@ -1,4 +1,5 @@
 from sqlalchemy import (
+    Boolean,
     Column,
     Date,
     DateTime,
@@ -73,6 +74,21 @@ class Farmer(Base):
     @phone_number.setter
     def phone_number(self, value):
         self.phone = value
+
+
+class Detection(Base):
+    __tablename__ = "detections"
+
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    phone = Column(String, nullable=False, index=True)
+    disease_name = Column(String, nullable=True)
+    crop_type = Column(String, nullable=True)
+    severity = Column(Integer, nullable=True)
+    lat = Column(Float, nullable=True)
+    lng = Column(Float, nullable=True)
+    spread = Column(Boolean, nullable=False, default=True, server_default=text("true"))
+    processed = Column(Boolean, nullable=False, default=False, server_default=text("false"))
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
 
 
 class MandiPrice(Base):

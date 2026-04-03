@@ -1,6 +1,7 @@
 from collections.abc import Mapping, Sequence
 from datetime import datetime, timezone
 
+from sqlalchemy import text
 from sqlalchemy.future import select
 
 from backend.db.models import Farmer, InboundMessage
@@ -384,3 +385,56 @@ async def fail_inbound_message(
     inbound.error = error[:1000] if error else "unknown_error"
     inbound.processed_at = datetime.now(timezone.utc)
     await db.commit()
+
+
+async def save_price_alert(
+    db,
+    phone: str,
+    commodity: str,
+    target_price: float,
+    direction: str,
+) -> dict:
+    phone = (phone or "").strip().lower()
+    commodity = (commodity or "").strip().lower()
+    direction = (direction or "").strip().lower()
+    target_price = float(target_price)
+
+    existing = await db.execute(
+        text(
+            """
+            SELECT id
+            FROM price_alerts
+            WHERE phone = :phone
+              AND commodity = :commodity
+              AND target_price = :target_price
+              AND direction = :direction
+              AND active = TRUE
+            LIMIT 1
+            """
+        ),
+        {
+            "phone": phone,
+            "commodity": commodity,
+            "target_price": target_price,
+            "direction": direction,
+        },
+    )
+    if existing.fetchone():
+        return {"created": False, "message": "already_exists"}
+
+    await db.execute(
+        text(
+            """
+            INSERT INTO price_alerts (phone, commodity, target_price, direction)
+            VALUES (:phone, :commodity, :target_price, :direction)
+            """
+        ),
+        {
+            "phone": phone,
+            "commodity": commodity,
+            "target_price": target_price,
+            "direction": direction,
+        },
+    )
+    await db.commit()
+    return {"created": True, "message": "created"}

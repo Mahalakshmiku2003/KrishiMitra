@@ -1,5 +1,6 @@
 import os
 import sys
+import requests as req
 
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
@@ -19,9 +20,12 @@ from backend.agent.diagnose import diagnose_image
 from backend.agent.scheduler import send_morning_briefings
 from backend.db.crud import (
     add_disease,
+    append_message_pair,
     _get_or_create_farmer,
+    get_recent_messages,
     normalize,
     normalize_list,
+    set_farmer_location_coords,
 )
 from backend.db.database import AsyncSessionLocal
 
@@ -74,8 +78,13 @@ def download_image(url: str) -> str:
         sid = os.getenv("TWILIO_ACCOUNT_SID")
         token = os.getenv("TWILIO_AUTH_TOKEN")
         print("Media URL:", url)
+        from requests.auth import HTTPBasicAuth
+
         response = req.get(
-            url, auth=(sid, token), headers={"User-Agent": "Mozilla/5.0"}, timeout=10
+            url,
+            auth=HTTPBasicAuth(sid, token),
+            headers={"User-Agent": "Mozilla/5.0"},
+            timeout=10,
         )
         print(f"Download status: {response.status_code}")
         if response.status_code == 200:
@@ -143,18 +152,22 @@ async def whatsapp_webhook(request: Request):
     lng = form.get("Longitude")
 
     if lat and lng:
-        from backend.farmer_store import save_farmer_location
-        from services.location_state import _pending_location
+        from backend.services.location_state import _pending_location
 
-        save_farmer_location(farmer_id, float(lat), float(lng))
+        db = AsyncSessionLocal()
+        try:
+            pid = (farmer_id or "").replace("whatsapp:", "").strip().lower()
+            await set_farmer_location_coords(db, pid, float(lat), float(lng))
+        finally:
+            await db.close()
         print(f"[Location] Saved: {lat}, {lng} for {farmer_id}")
 
         pending = _pending_location.pop(farmer_id, None)
         if pending:
-            from services.whatsapp_service import handle_location_for_mandi
+            from backend.services.whatsapp_service import handle_location_for_mandi
 
             reply = await handle_location_for_mandi(
-                phone=farmer_id,
+                phone=pid,
                 lat=float(lat),
                 lng=float(lng),
                 commodity=pending.get("commodity"),
@@ -199,6 +212,8 @@ async def whatsapp_webhook(request: Request):
     # ── Normal message flow ───────────────────────────────────────────────────
     try:
         disease_result = None
+        norm_id = (farmer_id or "").replace("whatsapp:", "").strip().lower()
+        history: list = []
 
         if num_media > 0 and media_url:
             img_path = download_image(media_url)
@@ -230,7 +245,7 @@ async def whatsapp_webhook(request: Request):
             if disease_result:
                 disease = normalize(disease_result.get("disease"))
 
-            farmer, created = await _get_or_create_farmer(db, farmer_id)
+            farmer, created = await _get_or_create_farmer(db, norm_id)
             farmer_language = farmer.language if farmer and farmer.language else "Hindi"
 
             if farmer:
@@ -257,16 +272,19 @@ async def whatsapp_webhook(request: Request):
                     print("Farmer saved:", farmer.phone)
 
                 if disease_result:
-                    await add_disease(db, farmer_id, disease_result)
+                    await add_disease(db, norm_id, disease_result)
                 elif disease:
                     await add_disease(
                         db,
-                        farmer_id,
+                        norm_id,
                         {"disease": disease, "severity": {"level": "unknown"}},
                     )
 
             print("DB updated successfully")
             print("STEP 2 DONE: DB updated")
+
+            history = await get_recent_messages(db, norm_id, limit=10)
+
         except Exception as e:
             print("DB ERROR:", e)
             raise
@@ -276,14 +294,21 @@ async def whatsapp_webhook(request: Request):
         print(f"STEP 3: Calling process_message (language={farmer_language})")
         try:
             reply = await process_message(
-                farmer_id=farmer_id,
+                farmer_id=norm_id,
                 message=message if message else "Hello",
-                disease_result=disease_result,
                 language=farmer_language,
+                history=history,
+                disease_result=disease_result,
             )
         except Exception as e:
             print("ERROR in process_message:", e)
             raise
+
+        db = AsyncSessionLocal()
+        try:
+            await append_message_pair(db, norm_id, message if message else "Hello", reply)
+        finally:
+            await db.close()
 
         print(f"Reply: {reply[:100]}...")
 
