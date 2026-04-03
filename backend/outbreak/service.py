@@ -5,8 +5,8 @@ from sqlalchemy import text
 from sqlalchemy.orm import Session
 
 from backend.services.db import SessionLocal
+from backend.services.whatsapp_service import send_proactive_message
 
-HIGH_SEVERITY_THRESHOLD = 65
 NEARBY_RADIUS_KM = 45.0
 
 
@@ -28,29 +28,109 @@ def _normalize_phone(phone: str) -> str:
     return (phone or "").replace("whatsapp:", "").strip().lower()
 
 
-async def handle_new_detection(db: Optional[Session], detection: dict[str, Any]) -> None:
+def _farmer_crops_lower(f: dict[str, Any]) -> str:
+    c = f.get("crops")
+    if c is None:
+        return ""
+    if isinstance(c, (list, tuple)):
+        return ",".join(str(x) for x in c).lower()
+    return str(c).lower()
+
+
+def get_all_farmers(db: Session) -> list[dict[str, Any]]:
+    rows = db.execute(
+        text("SELECT phone, lat, lng, crops FROM farmers")
+    ).fetchall()
+    return [
+        {"phone": r[0], "lat": r[1], "lng": r[2], "crops": r[3]}
+        for r in rows
+    ]
+
+
+def get_nearby_farmers(
+    db: Session,
+    lat: float,
+    lng: float,
+    radius_km: float,
+    exclude_phone: str,
+) -> list[dict[str, Any]]:
+    rows = db.execute(
+        text(
+            """
+            SELECT phone, lat, lng, crops FROM farmers
+            WHERE lat IS NOT NULL AND lng IS NOT NULL
+            """
+        )
+    ).fetchall()
+    ex = _normalize_phone(exclude_phone)
+    out: list[dict[str, Any]] = []
+    for r in rows:
+        f = {"phone": r[0], "lat": r[1], "lng": r[2], "crops": r[3]}
+        fp = _normalize_phone(str(f.get("phone") or ""))
+        if not fp or fp == ex:
+            continue
+        plat, plng = f.get("lat"), f.get("lng")
+        if plat is None or plng is None:
+            continue
+        dist = _haversine_km(lat, lng, float(plat), float(plng))
+        if dist <= radius_km:
+            f["_dist_km"] = dist
+            out.append(f)
+    return out
+
+
+def _mark_processed(db: Session, det_id: Any) -> None:
+    if det_id is None:
+        return
+    db.execute(
+        text("UPDATE detections SET processed = true WHERE id = :id"),
+        {"id": det_id},
+    )
+    db.commit()
+
+
+async def handle_new_detection(
+    db: Optional[Session], detection: dict[str, Any]
+) -> dict[str, Any]:
+    print("🔥 OUTBREAK TRIGGERED:", detection)
+
     close_db = False
     if db is None:
         db = SessionLocal()
         close_db = True
+
+    det_id = detection.get("id")
+
     try:
-        det_id = detection.get("id")
-        severity = detection.get("severity")
-        if severity is None:
-            severity = 0
+        sev = detection.get("severity")
+        if sev is None:
+            print("❌ Invalid severity")
+            _mark_processed(db, det_id)
+            return {"status": "invalid"}
+
         try:
-            severity = int(severity)
+            sev = int(sev)
         except (TypeError, ValueError):
-            severity = 0
+            print("❌ Invalid severity")
+            _mark_processed(db, det_id)
+            return {"status": "invalid"}
+
+        if sev <= 5:
+            print("❌ Severity too low")
+            _mark_processed(db, det_id)
+            return {"status": "low"}
+
+        if not detection.get("spread"):
+            print("❌ Spread false")
+            _mark_processed(db, det_id)
+            return {"status": "no_spread"}
 
         reporter = _normalize_phone(str(detection.get("phone") or ""))
         disease = (detection.get("disease_name") or "unknown").strip()
-        crop = detection.get("crop_type") or ""
+        det_crop = (detection.get("crop_type") or "").strip().lower()
 
         lat0 = detection.get("lat")
         lng0 = detection.get("lng")
-        lat_f: float | None
-        lng_f: float | None
         try:
             if lat0 is None or lng0 is None:
                 lat_f = lng_f = None
@@ -59,54 +139,79 @@ async def handle_new_detection(db: Optional[Session], detection: dict[str, Any])
         except (TypeError, ValueError):
             lat_f = lng_f = None
 
-        if severity >= HIGH_SEVERITY_THRESHOLD and lat_f is not None and lng_f is not None:
-            from backend.services.whatsapp_service import send_proactive_message
+        if lat_f is None or lng_f is None:
+            print("❌ Missing detection coordinates")
+            _mark_processed(db, det_id)
+            return {"status": "no_coords"}
 
-            rows = db.execute(
-                text(
-                    """
-                    SELECT phone, lat, lng FROM farmers
-                    WHERE lat IS NOT NULL AND lng IS NOT NULL
-                    """
-                )
-            ).fetchall()
-            for row in rows:
-                phone_raw = row[0]
-                plat, plng = row[1], row[2]
-                if plat is None or plng is None:
-                    continue
-                fp = _normalize_phone(str(phone_raw or ""))
-                if not fp or fp == reporter:
-                    continue
-                dist = _haversine_km(lat_f, lng_f, float(plat), float(plng))
-                if dist > NEARBY_RADIUS_KM:
-                    continue
-                phone_clean = fp.replace("whatsapp:", "").strip()
-                msg = (
-                    f"⚠️ *KrishiMitra outbreak alert*\n\n"
-                    f"A high-severity crop disease (*{disease}*) was reported "
-                    f"~{dist:.1f} km from you"
-                    + (f" ({crop})" if crop else "")
-                    + ".\n\n"
-                    f"Please inspect your fields and share a photo if you see symptoms. 🌾"
-                )
-                try:
-                    await send_proactive_message(phone_clean, msg)
-                except Exception as e:
-                    print("Outbreak error:", e)
+        all_farmers = get_all_farmers(db)
+        print(f"👥 Total farmers: {len(all_farmers)}")
 
-        if det_id is not None:
-            db.execute(
-                text("UPDATE detections SET processed = true WHERE id = :id"),
-                {"id": det_id},
-            )
-            db.commit()
+        nearby_farmers = get_nearby_farmers(
+            db, lat_f, lng_f, NEARBY_RADIUS_KM, reporter
+        )
+        print(f"📍 Nearby farmers: {len(nearby_farmers)}")
+
+        target_farmers: list[dict[str, Any]] = []
+        other_farmers: list[dict[str, Any]] = []
+        if not det_crop:
+            target_farmers = list(nearby_farmers)
+        else:
+            for f in nearby_farmers:
+                fc = _farmer_crops_lower(f)
+                if det_crop in fc:
+                    target_farmers.append(f)
+                else:
+                    other_farmers.append(f)
+
+        print(f"🎯 Same crop farmers: {len(target_farmers)}")
+        print(f"🌐 Other farmers: {len(other_farmers)}")
+
+        to_alert = target_farmers if target_farmers else other_farmers
+
+        if not nearby_farmers:
+            print("⚠️ No nearby farmers — sending test alert")
+            try:
+                rp = _normalize_phone(str(detection.get("phone") or ""))
+                await send_proactive_message(
+                    rp,
+                    "🔥 Test outbreak alert triggered",
+                )
+                print("✅ Alert sent to:", rp)
+            except Exception as e:
+                print("❌ Failed:", e)
+            _mark_processed(db, det_id)
+            return {"status": "test_alert_sent"}
+
+        msg_template = (
+            f"⚠️ *KrishiMitra outbreak alert*\n\n"
+            f"A disease (*{disease}*) was reported near you"
+            + (f" ({det_crop})" if det_crop else "")
+            + ".\n\n"
+            f"Please inspect your fields and share a photo if you see symptoms. 🌾"
+        )
+
+        for farmer in to_alert:
+            phone_clean = str(farmer.get("phone") or "").replace(
+                "whatsapp:", ""
+            ).strip()
+            if not phone_clean:
+                continue
+            try:
+                await send_proactive_message(phone_clean, msg_template)
+                print("✅ Alert sent to:", phone_clean)
+            except Exception as e:
+                print("❌ Failed:", e)
+
+        _mark_processed(db, det_id)
+        return {"status": "ok"}
     except Exception as e:
         print("Outbreak error:", e)
         try:
             db.rollback()
         except Exception:
             pass
+        return {"status": "error", "detail": str(e)}
     finally:
         if close_db:
             db.close()

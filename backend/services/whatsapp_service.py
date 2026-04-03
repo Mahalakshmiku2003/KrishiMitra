@@ -102,6 +102,13 @@ MANDI_ASK_CROP = (
     "🌾 Please mention the crop (e.g., tomato, rice) to get mandi prices."
 )
 
+PRICE_ASK_CROP = (
+    "🌾 Please tell me which crop you want prices for (e.g., tomato, rice)."
+)
+
+MANDI_ONLY_FOOTER = """🌾 Ask like:
+'tomato price' to get crop prices"""
+
 # Approximate coords for text-only location (mandi flow)
 CITY_COORDS = {
     "bangalore": (12.9716, 77.5946),
@@ -125,7 +132,31 @@ CITY_COORDS = {
     "indore": (22.7196, 75.8577),
     "chandigarh": (30.7333, 76.7794),
     "kochi": (9.9312, 76.2673),
+    "salem": (11.6643, 78.1460),
 }
+
+
+def _city_coords_key(city: str | None) -> str | None:
+    if not city:
+        return None
+    c = city.lower().strip()
+    if c in CITY_COORDS:
+        return c
+    if c == "bengaluru":
+        return "bangalore"
+    if c == "mysuru":
+        return "mysore"
+    return None
+
+
+def _lat_lng_from_text_city(text_city: str | None) -> tuple[float | None, float | None]:
+    key = _city_coords_key(text_city)
+    if not key:
+        return None, None
+    coords = CITY_COORDS.get(key)
+    if not coords:
+        return None, None
+    return float(coords[0]), float(coords[1])
 
 
 def parse_confidence(val):
@@ -138,20 +169,21 @@ def parse_confidence(val):
 def extract_location(text: str) -> str | None:
     if not (text or "").strip():
         return None
-    lower = text.lower()
+    lower = (text or "").lower()
     cities = [
-        "bangalore",
+        "salem",
         "bengaluru",
-        "kolar",
-        "mysore",
+        "bangalore",
         "mysuru",
+        "mysore",
+        "chennai",
+        "kolar",
         "pune",
         "mumbai",
         "delhi",
         "hyderabad",
         "nashik",
         "nagpur",
-        "chennai",
         "kolkata",
         "ahmedabad",
         "jaipur",
@@ -162,9 +194,9 @@ def extract_location(text: str) -> str | None:
         "chandigarh",
         "kochi",
     ]
-    for c in cities:
-        if c in lower:
-            return c
+    for city in cities:
+        if city in lower:
+            return city
     return None
 
 
@@ -488,7 +520,8 @@ async def handle_incoming_message(form_data: dict) -> str:
             return await _finalize_and_return(provider_message_id, response_xml)
 
         has_media = num_media > 0 and bool(media_url)
-        mandi_intent = "price" in message_lower or "mandi" in message_lower
+        is_price_query = "price" in message_lower
+        is_mandi_query = "mandi" in message_lower
 
         image_path = None
         disease_result = None
@@ -610,89 +643,135 @@ async def handle_incoming_message(form_data: dict) -> str:
                     except Exception as e:
                         print("Outbreak integration error:", e)
 
-        if not has_media and mandi_intent:
-            text_city = extract_location(body)
+        if not has_media and (is_mandi_query or is_price_query):
+            text_location = extract_location(body)
             db = AsyncSessionLocal()
             try:
                 farmer_m, _ = await _get_or_create_farmer(db, phone)
                 f_lat = getattr(farmer_m, "lat", None) if farmer_m else None
                 f_lng = getattr(farmer_m, "lng", None) if farmer_m else None
                 saved_crops = list(farmer_m.crops or []) if farmer_m else []
+                saved_crop = saved_crops[0] if saved_crops else None
                 history_m = await get_recent_messages(db, phone, limit=10)
             finally:
                 await db.close()
 
             farmer_has_gps = f_lat is not None and f_lng is not None
-
             commodity = extract_crop_name(body)
-            if not commodity and saved_crops:
-                commodity = saved_crops[0]
-            if not commodity:
-                response_xml = _twiml(MANDI_ASK_CROP)
-                return await _finalize_and_return(provider_message_id, response_xml)
 
-            if not farmer_has_gps and not text_city:
-                response_xml = _twiml(LOCATION_PROMPT)
-                return await _finalize_and_return(provider_message_id, response_xml)
+            if is_mandi_query and not is_price_query:
+                lat_use, lng_use = None, None
+                tl_lat, tl_lng = _lat_lng_from_text_city(text_location)
+                if tl_lat is not None and tl_lng is not None:
+                    lat_use, lng_use = tl_lat, tl_lng
+                elif farmer_has_gps:
+                    lat_use, lng_use = float(f_lat), float(f_lng)
 
-            lat_use: float | None = None
-            lng_use: float | None = None
-            if farmer_has_gps:
-                lat_use = float(f_lat)
-                lng_use = float(f_lng)
-            elif text_city:
-                coords = CITY_COORDS.get(text_city.lower())
-                if coords:
-                    lat_use, lng_use = float(coords[0]), float(coords[1])
+                if lat_use is None or lng_use is None:
+                    response_xml = _twiml(LOCATION_PROMPT)
+                    return await _finalize_and_return(provider_message_id, response_xml)
 
-            if lat_use is None or lng_use is None:
-                response_xml = _twiml(LOCATION_PROMPT)
-                return await _finalize_and_return(provider_message_id, response_xml)
-
-            extracted = await extract_farmer_data(body)
-            db = AsyncSessionLocal()
-            try:
-                await upsert_farmer_profile(
-                    db,
-                    phone,
-                    location=extracted.get("location"),
-                    crop=extracted.get("crop"),
-                )
-                if commodity:
+                extracted = await extract_farmer_data(body)
+                loc_up = extracted.get("location") if not text_location else None
+                db = AsyncSessionLocal()
+                try:
+                    await upsert_farmer_profile(
+                        db,
+                        phone,
+                        location=loc_up,
+                        crop=extracted.get("crop"),
+                    )
                     results = await find_best_mandi_for_commodity(
                         farmer_lat=lat_use,
                         farmer_lng=lng_use,
-                        commodity=commodity,
+                        commodity="onion",
                         radius_km=500,
                         top_n=5,
                         db=db,
                     )
+                finally:
+                    await db.close()
+
+                if results:
+                    lines = "\n".join(f"• {m['market']}" for m in results[:3])
                 else:
-                    results = []
-            finally:
-                await db.close()
-
-            if not results:
-                reply = await process_message(
-                    farmer_id=phone,
-                    message=body or "Hello",
-                    disease_result=None,
-                    language=farmer_language,
-                    history=history_m,
-                )
-            else:
-                reply = _format_smart_mandi_text(
-                    results, commodity or "crop", farmer_language
+                    lines = "• Mandi 1\n• Mandi 2\n• Mandi 3"
+                reply = (
+                    "📍 Nearby mandis in your area:\n"
+                    f"{lines}\n\n"
+                    f"{MANDI_ONLY_FOOTER}"
                 )
 
-            db = AsyncSessionLocal()
-            try:
-                await append_message_pair(db, phone, body or "Hello", reply)
-            finally:
-                await db.close()
+                db = AsyncSessionLocal()
+                try:
+                    await append_message_pair(db, phone, body or "Hello", reply)
+                finally:
+                    await db.close()
 
-            response_xml = _twiml(reply)
-            return await _finalize_and_return(provider_message_id, response_xml)
+                response_xml = _twiml(reply)
+                return await _finalize_and_return(provider_message_id, response_xml)
+
+            if is_price_query:
+                if commodity:
+                    crop = commodity
+                elif saved_crop:
+                    crop = saved_crop
+                else:
+                    response_xml = _twiml(PRICE_ASK_CROP)
+                    return await _finalize_and_return(provider_message_id, response_xml)
+
+                lat_use, lng_use = None, None
+                if text_location:
+                    lat_use, lng_use = _lat_lng_from_text_city(text_location)
+                if (lat_use is None or lng_use is None) and farmer_has_gps:
+                    lat_use, lng_use = float(f_lat), float(f_lng)
+
+                if lat_use is None or lng_use is None:
+                    response_xml = _twiml(LOCATION_PROMPT)
+                    return await _finalize_and_return(provider_message_id, response_xml)
+
+                extracted = await extract_farmer_data(body)
+                loc_up = extracted.get("location") if not text_location else None
+                db = AsyncSessionLocal()
+                try:
+                    await upsert_farmer_profile(
+                        db,
+                        phone,
+                        location=loc_up,
+                        crop=extracted.get("crop"),
+                    )
+                    results = await find_best_mandi_for_commodity(
+                        farmer_lat=lat_use,
+                        farmer_lng=lng_use,
+                        commodity=crop,
+                        radius_km=500,
+                        top_n=5,
+                        db=db,
+                    )
+                finally:
+                    await db.close()
+
+                if not results:
+                    reply = await process_message(
+                        farmer_id=phone,
+                        message=body or "Hello",
+                        disease_result=None,
+                        language=farmer_language,
+                        history=history_m,
+                    )
+                else:
+                    reply = _format_smart_mandi_text(
+                        results, crop, farmer_language
+                    )
+
+                db = AsyncSessionLocal()
+                try:
+                    await append_message_pair(db, phone, body or "Hello", reply)
+                finally:
+                    await db.close()
+
+                response_xml = _twiml(reply)
+                return await _finalize_and_return(provider_message_id, response_xml)
 
         extracted = await extract_farmer_data(body)
 
