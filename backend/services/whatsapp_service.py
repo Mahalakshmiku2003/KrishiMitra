@@ -68,6 +68,40 @@ LANGUAGE_CONFIRM = {
     "English": "✅ Language set: *English* 🌾\nNow ask your question!",
 }
 
+LOCATION_PROMPT = """📍 To get accurate mandi prices, please share your location.
+
+👉 How to send location:
+• Tap 📎 (attachment icon)
+• Select "Location"
+• Send your current location
+
+🌾 This helps me find the nearest market prices for you."""
+
+NO_DISEASE_REPLY = """🌿 No disease detected in the image.
+
+✅ Your crop looks healthy.
+
+💡 Tips:
+• Keep monitoring regularly
+• Maintain proper watering
+• Ensure good sunlight and spacing
+
+📸 If you still suspect an issue, send another clear photo.
+
+🌾 Need help? I'm here!"""
+
+LOW_CONFIDENCE_REPLY = """🤔 I'm not fully sure about the disease.
+
+📸 Please send:
+• a clearer image
+• close-up of affected leaves
+
+🌾 I'll help you better!"""
+
+MANDI_ASK_CROP = (
+    "🌾 Please mention the crop (e.g., tomato, rice) to get mandi prices."
+)
+
 # Approximate coords for text-only location (mandi flow)
 CITY_COORDS = {
     "bangalore": (12.9716, 77.5946),
@@ -134,16 +168,26 @@ def extract_location(text: str) -> str | None:
     return None
 
 
-def extract_crop_name(message: str) -> str | None:
-    text = (message or "").lower()
-    crop_keywords = [
-        "tomato",
+def extract_crop_name(text: str) -> str | None:
+    crop_aliases = {
+        "tomato": ["tomato", "tamatar"],
+        "rice": ["rice", "paddy"],
+        "wheat": ["wheat", "gehu"],
+        "onion": ["onion", "pyaz"],
+        "maize": ["maize", "corn"],
+        "chilli": ["chilli", "chili"],
+    }
+
+    t = (text or "").lower()
+
+    for crop, aliases in crop_aliases.items():
+        for word in aliases:
+            if word in t:
+                return crop
+
+    extra = [
         "potato",
-        "onion",
-        "wheat",
-        "rice",
         "cotton",
-        "corn",
         "grape",
         "pepper",
         "mango",
@@ -154,14 +198,52 @@ def extract_crop_name(message: str) -> str | None:
         "cabbage",
         "cauliflower",
         "carrot",
-        "chilli",
         "groundnut",
         "soybean",
     ]
-    for crop in crop_keywords:
-        if crop in text:
+    for crop in extra:
+        if crop in t:
             return crop
     return None
+
+
+def format_disease_response(disease_result: dict) -> str:
+    from backend.agent.tools import get_treatment
+
+    disease = disease_result.get("disease", "Unknown disease")
+    confidence = disease_result.get("confidence", "0%")
+
+    try:
+        confidence_val = int(float(str(confidence).replace("%", "")))
+    except (TypeError, ValueError):
+        confidence_val = 0
+
+    if confidence_val > 75:
+        severity = "🔴 High"
+    elif confidence_val > 40:
+        severity = "🟡 Moderate"
+    else:
+        severity = "🟢 Low"
+
+    treatment = disease_result.get("treatment")
+    if not treatment or treatment == "No treatment available":
+        treatment = get_treatment(str(disease)) or "No treatment available"
+
+    return f"""🦠 Disease Detected: *{disease}*
+
+📊 Severity: {severity} ({confidence})
+
+💊 Treatment:
+{treatment}
+
+⚠️ What to do:
+• Start treatment immediately if severity is high
+• Monitor crop daily
+• Avoid excess moisture
+
+📸 Send another photo in 2-3 days to track progress.
+
+🌾 Need help? Just ask!"""
 
 
 def _format_smart_mandi_text(results: list, commodity: str, language: str) -> str:
@@ -170,7 +252,7 @@ def _format_smart_mandi_text(results: list, commodity: str, language: str) -> st
     for i, m in enumerate(results, 1):
         dist = m.get("distance", m.get("distance_km", "?"))
         lines.append(
-            f"{i}. *{m['market']}* — ₹{m.get('modal_price', 0)}/q (~{dist} km)"
+            f"{i}. *{m['market']}* - Rs.{m.get('modal_price', 0)}/q (~{dist} km)"
         )
     body = "\n".join(lines)
     if lang == "english":
@@ -410,6 +492,7 @@ async def handle_incoming_message(form_data: dict) -> str:
 
         image_path = None
         disease_result = None
+        reply_override = None
 
         if has_media:
             img_check = check_image(content_type)
@@ -437,65 +520,95 @@ async def handle_incoming_message(form_data: dict) -> str:
                 print("Disease error:", e)
                 disease_result = None
 
-            if disease_result and not disease_result.get("error"):
-                from backend.scheduler import schedule_followup
-
-                confidence = parse_confidence(disease_result.get("confidence"))
-                schedule_followup(
-                    phone=phone,
-                    farmer_name="Farmer",
-                    disease_name=disease_result.get("disease") or "unknown",
-                    bbox_pct=confidence,
-                )
-
-                try:
-                    from backend.outbreak.service import handle_new_detection
-
-                    db_ob = AsyncSessionLocal()
+            if not disease_result:
+                reply_override = NO_DISEASE_REPLY
+            elif disease_result.get("error"):
+                pass
+            else:
+                raw_l = (disease_result.get("raw_name") or "").lower()
+                if "healthy" in raw_l:
+                    reply_override = NO_DISEASE_REPLY
+                else:
                     try:
-                        farmer_ob, _ = await _get_or_create_farmer(db_ob, phone)
-                        crop_val = (
-                            farmer_ob.crops[0]
-                            if farmer_ob and farmer_ob.crops
-                            else None
+                        conf_i = int(
+                            float(
+                                str(disease_result.get("confidence", 0)).replace(
+                                    "%", ""
+                                )
+                            )
                         )
-                        detection_data = {
-                            "phone": phone,
-                            "disease_name": disease_result.get("disease"),
-                            "crop_type": crop_val,
-                            "severity": parse_confidence(
-                                disease_result.get("confidence")
-                            ),
-                            "lat": getattr(farmer_ob, "lat", None)
-                            if farmer_ob
-                            else None,
-                            "lng": getattr(farmer_ob, "lng", None)
-                            if farmer_ob
-                            else None,
-                            "spread": True,
-                        }
+                    except (TypeError, ValueError):
+                        conf_i = 30
+                    if conf_i < 30:
+                        reply_override = LOW_CONFIDENCE_REPLY
 
-                        result = await db_ob.execute(
-                            text(
-                                """
-                                INSERT INTO detections
-                                (phone, disease_name, crop_type, severity, lat, lng, spread, processed)
-                                VALUES (:phone, :disease_name, :crop_type, :severity, :lat, :lng, :spread, false)
-                                RETURNING id
-                                """
-                            ),
-                            detection_data,
-                        )
-                        row = result.fetchone()
-                        if row:
-                            detection_data["id"] = row[0]
-                        await db_ob.commit()
-                    finally:
-                        await db_ob.close()
+            if (
+                disease_result
+                and not disease_result.get("error")
+                and reply_override is None
+            ):
+                raw_l2 = (disease_result.get("raw_name") or "").lower()
+                if "healthy" not in raw_l2 and parse_confidence(
+                    disease_result.get("confidence")
+                ) >= 30:
+                    from backend.scheduler import schedule_followup
 
-                    await handle_new_detection(db=None, detection=detection_data)
-                except Exception as e:
-                    print("Outbreak integration error:", e)
+                    confidence = parse_confidence(disease_result.get("confidence"))
+                    schedule_followup(
+                        phone=phone,
+                        farmer_name="Farmer",
+                        disease_name=disease_result.get("disease") or "unknown",
+                        bbox_pct=confidence,
+                    )
+
+                    try:
+                        from backend.outbreak.service import handle_new_detection
+
+                        db_ob = AsyncSessionLocal()
+                        try:
+                            farmer_ob, _ = await _get_or_create_farmer(db_ob, phone)
+                            crop_val = (
+                                farmer_ob.crops[0]
+                                if farmer_ob and farmer_ob.crops
+                                else None
+                            )
+                            detection_data = {
+                                "phone": phone,
+                                "disease_name": disease_result.get("disease"),
+                                "crop_type": crop_val,
+                                "severity": parse_confidence(
+                                    disease_result.get("confidence")
+                                ),
+                                "lat": getattr(farmer_ob, "lat", None)
+                                if farmer_ob
+                                else None,
+                                "lng": getattr(farmer_ob, "lng", None)
+                                if farmer_ob
+                                else None,
+                                "spread": True,
+                            }
+
+                            result = await db_ob.execute(
+                                text(
+                                    """
+                                    INSERT INTO detections
+                                    (phone, disease_name, crop_type, severity, lat, lng, spread, processed)
+                                    VALUES (:phone, :disease_name, :crop_type, :severity, :lat, :lng, :spread, false)
+                                    RETURNING id
+                                    """
+                                ),
+                                detection_data,
+                            )
+                            row = result.fetchone()
+                            if row:
+                                detection_data["id"] = row[0]
+                            await db_ob.commit()
+                        finally:
+                            await db_ob.close()
+
+                        await handle_new_detection(db=None, detection=detection_data)
+                    except Exception as e:
+                        print("Outbreak integration error:", e)
 
         if not has_media and mandi_intent:
             text_city = extract_location(body)
@@ -511,10 +624,15 @@ async def handle_incoming_message(form_data: dict) -> str:
 
             farmer_has_gps = f_lat is not None and f_lng is not None
 
+            commodity = extract_crop_name(body)
+            if not commodity and saved_crops:
+                commodity = saved_crops[0]
+            if not commodity:
+                response_xml = _twiml(MANDI_ASK_CROP)
+                return await _finalize_and_return(provider_message_id, response_xml)
+
             if not farmer_has_gps and not text_city:
-                response_xml = _twiml(
-                    "📍 Please share your location to get accurate mandi prices."
-                )
+                response_xml = _twiml(LOCATION_PROMPT)
                 return await _finalize_and_return(provider_message_id, response_xml)
 
             lat_use: float | None = None
@@ -528,14 +646,8 @@ async def handle_incoming_message(form_data: dict) -> str:
                     lat_use, lng_use = float(coords[0]), float(coords[1])
 
             if lat_use is None or lng_use is None:
-                response_xml = _twiml(
-                    "📍 Please share your location to get accurate mandi prices."
-                )
+                response_xml = _twiml(LOCATION_PROMPT)
                 return await _finalize_and_return(provider_message_id, response_xml)
-
-            commodity = extract_crop_name(body) or (
-                saved_crops[0] if saved_crops else None
-            )
 
             extracted = await extract_farmer_data(body)
             db = AsyncSessionLocal()
@@ -592,20 +704,44 @@ async def handle_incoming_message(form_data: dict) -> str:
                 location=extracted.get("location"),
                 crop=extracted.get("crop"),
             )
-            if disease_result and not disease_result.get("error"):
+            _record_disease = (
+                disease_result
+                and not disease_result.get("error")
+                and reply_override is None
+                and (
+                    not has_media
+                    or (
+                        "healthy"
+                        not in (disease_result.get("raw_name") or "").lower()
+                        and parse_confidence(disease_result.get("confidence")) >= 30
+                    )
+                )
+            )
+            if _record_disease:
                 await add_disease(db, phone, disease_result)
 
             history = await get_recent_messages(db, phone, limit=10)
         finally:
             await db.close()
 
-        reply = await process_message(
-            farmer_id=phone,
-            message=body or "Hello",
-            language=farmer_language,
-            history=history,
-            disease_result=disease_result,
-        )
+        if reply_override is not None:
+            reply = reply_override
+        elif (
+            has_media
+            and disease_result
+            and not disease_result.get("error")
+            and "healthy" not in (disease_result.get("raw_name") or "").lower()
+            and parse_confidence(disease_result.get("confidence")) >= 30
+        ):
+            reply = format_disease_response(disease_result)
+        else:
+            reply = await process_message(
+                farmer_id=phone,
+                message=body or "Hello",
+                language=farmer_language,
+                history=history,
+                disease_result=disease_result,
+            )
 
         db = AsyncSessionLocal()
         try:
@@ -683,7 +819,7 @@ async def handle_location_for_mandi(
             reply = "*Nearest mandis to you:*\n\n"
             for i, m in enumerate(results, 1):
                 dist = m.get("distance_km", m.get("distance", "?"))
-                reply += f"{i}. *{m['market']}* — {dist} km\n"
+                reply += f"{i}. *{m['market']}* - {dist} km\n"
                 if m.get("district"):
                     reply += f"   {m['district']}, {m['state']}\n"
             reply += "\nNeed any other help? 🌾"
@@ -693,7 +829,7 @@ async def handle_location_for_mandi(
             reply = "*ನಿಮಗೆ ಹತ್ತಿರದ ಮಂಡಿಗಳು:*\n\n"
             for i, m in enumerate(results, 1):
                 dist = m.get("distance_km", m.get("distance", "?"))
-                reply += f"{i}. *{m['market']}* — {dist} km\n"
+                reply += f"{i}. *{m['market']}* - {dist} km\n"
                 if m.get("district"):
                     reply += f"   {m['district']}, {m['state']}\n"
             reply += "\nಇನ್ನೇನಾದರೂ ಸಹಾಯ ಬೇಕೇ? 🌾"
@@ -702,7 +838,7 @@ async def handle_location_for_mandi(
         reply = "*Aapke sabse paas ke mandis:*\n\n"
         for i, m in enumerate(results, 1):
             dist = m.get("distance_km", m.get("distance", "?"))
-            reply += f"{i}. *{m['market']}* — {dist} km\n"
+            reply += f"{i}. *{m['market']}* - {dist} km\n"
             if m.get("district"):
                 reply += f"   {m['district']}, {m['state']}\n"
         reply += "\nKoi aur madad chahiye? 🌾"
@@ -763,7 +899,7 @@ async def handle_location_for_mandi(
             for m in results[1:]:
                 dist = m.get("distance_km", m.get("distance", "?"))
                 np = m.get("net_price", m.get("modal_price"))
-                reply += f"  • {m['market']} — Rs.{np}/q ({dist}km)\n"
+                reply += f"  • {m['market']} - Rs.{np}/q ({dist}km)\n"
         reply += "\nNeed any other help? 🌾"
         return reply
 
@@ -788,7 +924,7 @@ async def handle_location_for_mandi(
             for m in results[1:]:
                 dist = m.get("distance_km", m.get("distance", "?"))
                 np = m.get("net_price", m.get("modal_price"))
-                reply += f"  • {m['market']} — Rs.{np}/q ({dist}km)\n"
+                reply += f"  • {m['market']} - Rs.{np}/q ({dist}km)\n"
         reply += "\nಇನ್ನೇನಾದರೂ ಸಹಾಯ ಬೇಕೇ? 🌾"
         return reply
 
@@ -808,7 +944,7 @@ async def handle_location_for_mandi(
         for m in results[1:]:
             dist = m.get("distance_km", m.get("distance", "?"))
             np = m.get("net_price", m.get("modal_price"))
-            reply += f"  • {m['market']} — Rs.{np}/q ({dist}km)\n"
+            reply += f"  • {m['market']} - Rs.{np}/q ({dist}km)\n"
 
     reply += "\nKoi aur madad chahiye? 🌾"
     return reply

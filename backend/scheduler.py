@@ -211,8 +211,9 @@ async def morning_briefing():
                         humidity = None
 
                 messages.append(lang["weather"])
+                temp_disp = str(parsed["temp"]).replace("°C", "").strip()
                 messages.append(
-                    f"• {lang['temp']}: {parsed['temp']}°C\n"
+                    f"• {lang['temp']}: {temp_disp}°C\n"
                     f"• {lang['humidity_label']}: {parsed['humidity_str']}\n"
                     f"• {lang['rain']}: {lang['rain_yes'] if rain else lang['rain_no']}\n"
                     f"• Sky: {parsed['condition']}"
@@ -347,11 +348,9 @@ async def check_price_alerts():
             current_price = nearest["modal_price"]
 
             triggered = (
-                alert["direction"] == "above"
-                and current_price >= alert["target_price"]
+                alert["direction"] == "above" and current_price >= alert["target_price"]
             ) or (
-                alert["direction"] == "below"
-                and current_price <= alert["target_price"]
+                alert["direction"] == "below" and current_price <= alert["target_price"]
             )
 
             if triggered:
@@ -392,7 +391,7 @@ def schedule_followup(
     bbox_pct,
     severity=None,
 ):
-    run_date = datetime.now() + timedelta(days=3)
+    run_date = datetime.now() + timedelta(minutes=1)
     phone_n = _normalize_phone(phone)
     job_id = f"followup_{phone_n}_{int(datetime.now().timestamp() * 1000)}"
 
@@ -407,28 +406,28 @@ def schedule_followup(
 
 
 async def _send_followup(phone, farmer_name, disease_name, bbox_pct, severity=None):
-    from backend.agent.tools import get_treatment
-
     phone_n = _normalize_phone(phone)
     disease_label = disease_name or "your crop issue"
-    severity_line = severity if severity else f"Detection emphasis / confidence ~{bbox_pct}%"
-    try:
-        action = get_treatment(str(disease_label))
-    except Exception:
-        action = "Continue care; share a new photo if unsure."
+    msg = f"""
+🌾 Follow-up Check
 
-    if action and len(action) > 500:
-        action = action[:497] + "..."
+Earlier, your crop had *{disease_label}*
 
-    msg = (
-        f"🌾 KrishiMitra follow-up\n\n"
-        f"Namaste {farmer_name},\n\n"
-        f"Earlier we noted: *{disease_label}*\n"
-        f"Severity: *{severity_line}*\n\n"
-        f"Suggested action:\n{action}\n\n"
-        f"Did you apply treatment? Please send a fresh crop photo if you can."
-    )
-    await send_proactive_message(phone_n, msg)
+📊 Infection level: ~{bbox_pct}%
+
+💊 Quick Treatment Plan:
+• Apply recommended fungicide
+• Remove affected leaves
+• Avoid overwatering
+
+👉 If treated:
+Send a new photo to check progress
+
+❓ Need more treatment information? Just ask!
+
+Stay alert 🚜
+"""
+    await send_proactive_message(phone_n, msg.strip())
 
 
 # ---------------- START ----------------
