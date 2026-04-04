@@ -1,7 +1,7 @@
-from sqlalchemy import select
-from backend.db.models import MandiPrice  # adjust if your model name differs
 import math
 from sqlalchemy import select
+
+from backend.db.models import MandiPrice  # adjust if your model name differs
 
 
 async def get_price_history(commodity: str, db):
@@ -55,18 +55,72 @@ async def get_all_latest_prices(commodity: str, db):
 # -----------------------------
 # Find best mandi
 # -----------------------------
+def _dedupe_latest_rows(rows):
+    best = {}
+    for row in rows:
+        mk = getattr(row, "market", "") or ""
+        dstr = getattr(row, "district", "") or ""
+        key = (mk, dstr)
+        prev = best.get(key)
+        ad = getattr(row, "arrival_date", None)
+        if prev is None:
+            best[key] = row
+            continue
+        prev_ad = getattr(prev, "arrival_date", None)
+        if ad is not None and (prev_ad is None or ad > prev_ad):
+            best[key] = row
+    return list(best.values())
+
+
 async def find_best_mandi_for_commodity(
-    farmer_lat: float,
-    farmer_lng: float,
-    commodity: str,
+    farmer_lat: float | None = None,
+    farmer_lng: float | None = None,
+    commodity: str = "",
     radius_km: int = 300,
     top_n: int = 3,
     db=None,
+    location_name: str | None = None,
 ):
     if not commodity:
         return []
 
     all_prices = await get_all_latest_prices(commodity, db)
+
+    if location_name:
+        ln = (location_name or "").strip().lower()
+        if ln:
+            matched = []
+            for row in all_prices:
+                dist = (getattr(row, "district", None) or "").lower()
+                mkt = (getattr(row, "market", None) or "").lower()
+                if (
+                    ln in dist
+                    or dist in ln
+                    or ln in mkt
+                    or mkt in ln
+                ):
+                    matched.append(row)
+            if matched:
+                rows = _dedupe_latest_rows(matched)
+                rows.sort(
+                    key=lambda r: float(getattr(r, "modal_price", 0) or 0),
+                    reverse=True,
+                )
+                out = []
+                for r in rows[:top_n]:
+                    out.append(
+                        {
+                            "market": getattr(r, "market", "Unknown"),
+                            "modal_price": float(getattr(r, "modal_price", 0) or 0),
+                            "district": getattr(r, "district", "") or "",
+                            "distance": "?",
+                            "distance_km": None,
+                        }
+                    )
+                return out
+
+    if farmer_lat is None or farmer_lng is None:
+        return []
 
     mandis = []
 

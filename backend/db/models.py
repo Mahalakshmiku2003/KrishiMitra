@@ -63,6 +63,21 @@ class Farmer(Base):
 
     language = Column(String, nullable=True, default=None)
 
+    @property
+    def last_disease(self):
+        if isinstance(self.last_detection, dict):
+            return self.last_detection.get("disease")
+        return None
+
+    @last_disease.setter
+    def last_disease(self, value):
+        base = dict(self.last_detection) if isinstance(self.last_detection, dict) else {}
+        if value is not None and str(value).strip():
+            base["disease"] = str(value).strip().lower()
+        else:
+            base.pop("disease", None)
+        self.last_detection = base
+
     @validates("last_detection")
     def validate_last_detection(self, key, value):
         return value if isinstance(value, dict) else {}

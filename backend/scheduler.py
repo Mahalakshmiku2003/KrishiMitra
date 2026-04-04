@@ -9,7 +9,11 @@ from concurrent.futures import ThreadPoolExecutor
 from sqlalchemy import select, text
 
 from backend.services.whatsapp_service import send_proactive_message
-from backend.services.market_service import find_best_mandi_for_commodity
+from backend.services.market_service import (
+    calculate_distance,
+    find_best_mandi_for_commodity,
+    get_all_latest_prices,
+)
 from backend.services.prediction_service import predict_prices_async
 from backend.services.weather_service import get_weather
 
@@ -132,11 +136,73 @@ def _parse_weather_fields(weather_text: str) -> dict:
     }
 
 
+async def _ensure_price_alerts_last_triggered_column(db):
+    try:
+        await db.execute(
+            text(
+                "ALTER TABLE price_alerts ADD COLUMN IF NOT EXISTS "
+                "last_triggered_price DOUBLE PRECISION"
+            )
+        )
+        await db.commit()
+    except Exception as e:
+        await db.rollback()
+        print("[ALERT] last_triggered_price column note:", e)
+
+
+def _latest_mandi_dicts_from_rows(rows):
+    best = {}
+    for row in rows:
+        market = getattr(row, "market", "") or ""
+        district = getattr(row, "district", "") or ""
+        key = (market, district)
+        prev = best.get(key)
+        ad = getattr(row, "arrival_date", None)
+        if prev is None:
+            best[key] = row
+            continue
+        prev_ad = getattr(prev, "arrival_date", None)
+        if ad is not None and (prev_ad is None or ad > prev_ad):
+            best[key] = row
+    out = []
+    for row in best.values():
+        mp = getattr(row, "modal_price", None)
+        if mp is None:
+            continue
+        out.append(
+            {
+                "market": row.market,
+                "district": getattr(row, "district", "") or "",
+                "modal_price": float(mp),
+                "lat": getattr(row, "lat", None),
+                "lng": getattr(row, "lng", None),
+            }
+        )
+    return out
+
+
+def _sort_mandis_by_farmer_distance(mandis, lat, lng):
+    with_coords = [
+        m
+        for m in mandis
+        if m.get("lat") is not None and m.get("lng") is not None
+    ]
+    rest = [
+        m
+        for m in mandis
+        if m.get("lat") is None or m.get("lng") is None
+    ]
+    with_coords.sort(
+        key=lambda m: calculate_distance(lat, lng, m["lat"], m["lng"])
+    )
+    return with_coords + rest
+
+
 async def _get_active_price_alerts(db):
     result = await db.execute(
         text(
             """
-            SELECT id, phone, commodity, target_price, direction
+            SELECT id, phone, commodity, target_price, direction, last_triggered_price
             FROM price_alerts
             WHERE active = TRUE
             """
@@ -149,7 +215,8 @@ async def _get_active_price_alerts(db):
             "phone": (r[1] or "").strip().lower(),
             "commodity": r[2],
             "target_price": float(r[3]),
-            "direction": r[4],
+            "direction": (r[4] or "").strip().lower(),
+            "last_triggered_price": float(r[5]) if r[5] is not None else None,
         }
         for r in rows
     ]
@@ -320,6 +387,8 @@ async def send_morning_briefings():
 async def check_price_alerts():
     db = AsyncSessionLocal()
     try:
+        await _ensure_price_alerts_last_triggered_column(db)
+
         alerts = await _get_active_price_alerts(db)
         if not alerts:
             return
@@ -327,41 +396,93 @@ async def check_price_alerts():
         for alert in alerts:
             phone = alert["phone"]
             commodity = alert["commodity"]
+            direction = alert["direction"] or "above"
+            print(f"[ALERT] Checking {commodity}")
 
-            location = await _get_farmer_lat_lng(db, phone)
-            if not location:
-                continue
-
-            mandis = await find_best_mandi_for_commodity(
-                farmer_lat=location["lat"],
-                farmer_lng=location["lng"],
-                commodity=commodity,
-                radius_km=300,
-                top_n=1,
-                db=db,
-            )
-
+            raw_rows = await get_all_latest_prices(commodity, db)
+            mandis = _latest_mandi_dicts_from_rows(raw_rows)
             if not mandis:
                 continue
 
-            nearest = mandis[0]
-            current_price = nearest["modal_price"]
-
-            triggered = (
-                alert["direction"] == "above" and current_price >= alert["target_price"]
-            ) or (
-                alert["direction"] == "below" and current_price <= alert["target_price"]
-            )
-
-            if triggered:
-                msg = (
-                    f"🔔 Price alert!\n"
-                    f"{commodity.title()} is now Rs.{current_price}/quintal "
-                    f"({alert['direction']} your target Rs.{alert['target_price']:.0f}).\n"
-                    f"Mandi: {nearest['market']}"
+            location = await _get_farmer_lat_lng(db, phone)
+            if location:
+                ranked = await find_best_mandi_for_commodity(
+                    farmer_lat=location["lat"],
+                    farmer_lng=location["lng"],
+                    commodity=commodity,
+                    radius_km=300,
+                    top_n=500,
+                    db=db,
                 )
-                await send_proactive_message(phone, msg)
-                await _deactivate_price_alert(db, alert["id"])
+                if ranked:
+                    by_market = {m["market"]: m for m in mandis}
+                    ordered = []
+                    seen = set()
+                    for r in ranked:
+                        mk = r["market"]
+                        if mk in seen:
+                            continue
+                        seen.add(mk)
+                        base = by_market.get(mk)
+                        if base:
+                            ordered.append(base)
+                        else:
+                            ordered.append(
+                                {
+                                    "market": mk,
+                                    "district": "",
+                                    "modal_price": float(r["modal_price"]),
+                                    "lat": None,
+                                    "lng": None,
+                                }
+                            )
+                    mandis = ordered
+                else:
+                    mandis = _sort_mandis_by_farmer_distance(
+                        mandis, location["lat"], location["lng"]
+                    )
+
+            for mandi in mandis:
+                current_price = mandi["modal_price"]
+                ltp = alert.get("last_triggered_price")
+
+                if direction == "below":
+                    if current_price > alert["target_price"]:
+                        continue
+                    if ltp is not None and current_price >= ltp:
+                        continue
+                else:
+                    if current_price < alert["target_price"]:
+                        continue
+                    if ltp is not None and current_price <= ltp:
+                        continue
+
+                print(
+                    f"[ALERT] Price: {current_price}, Target: {alert['target_price']}"
+                )
+
+                message = f"""
+📈 Price Alert!
+
+🌾 Crop: {commodity}
+📍 Mandi: {mandi['market']}
+💰 New Price: ₹{current_price}
+🎯 Target: ₹{alert['target_price']}
+
+🚜 Good time to sell!
+""".strip()
+                await send_proactive_message(phone, message)
+
+                await db.execute(
+                    text(
+                        "UPDATE price_alerts SET last_triggered_price = :p "
+                        "WHERE id = :id"
+                    ),
+                    {"p": current_price, "id": alert["id"]},
+                )
+                await db.commit()
+                alert["last_triggered_price"] = current_price
+                break
 
     finally:
         await db.close()
@@ -437,7 +558,9 @@ def start_scheduler():
 
     scheduler.add_job(
         morning_briefing,
-        CronTrigger(hour=6, minute=30),
+        "cron",
+        hour=9,
+        minute=16,
         id="morning_briefing",
         replace_existing=True,
     )

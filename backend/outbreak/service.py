@@ -28,15 +28,6 @@ def _normalize_phone(phone: str) -> str:
     return (phone or "").replace("whatsapp:", "").strip().lower()
 
 
-def _farmer_crops_lower(f: dict[str, Any]) -> str:
-    c = f.get("crops")
-    if c is None:
-        return ""
-    if isinstance(c, (list, tuple)):
-        return ",".join(str(x) for x in c).lower()
-    return str(c).lower()
-
-
 def get_all_farmers(db: Session) -> list[dict[str, Any]]:
     rows = db.execute(
         text("SELECT phone, lat, lng, crops FROM farmers")
@@ -92,7 +83,7 @@ def _mark_processed(db: Session, det_id: Any) -> None:
 async def handle_new_detection(
     db: Optional[Session], detection: dict[str, Any]
 ) -> dict[str, Any]:
-    print("🔥 OUTBREAK TRIGGERED:", detection)
+    print("🔥 OUTBREAK TRIGGER:", detection)
 
     close_db = False
     if db is None:
@@ -158,8 +149,12 @@ async def handle_new_detection(
             target_farmers = list(nearby_farmers)
         else:
             for f in nearby_farmers:
-                fc = _farmer_crops_lower(f)
-                if det_crop in fc:
+                crops_raw = f.get("crops")
+                if isinstance(crops_raw, (list, tuple)):
+                    farmer_crops = ",".join(str(x) for x in crops_raw).lower()
+                else:
+                    farmer_crops = (str(crops_raw) if crops_raw is not None else "").lower()
+                if det_crop in farmer_crops:
                     target_farmers.append(f)
                 else:
                     other_farmers.append(f)
@@ -170,14 +165,15 @@ async def handle_new_detection(
         to_alert = target_farmers if target_farmers else other_farmers
 
         if not nearby_farmers:
-            print("⚠️ No nearby farmers — sending test alert")
             try:
-                rp = _normalize_phone(str(detection.get("phone") or ""))
                 await send_proactive_message(
-                    rp,
+                    _normalize_phone(str(detection.get("phone") or "")),
                     "🔥 Test outbreak alert triggered",
                 )
-                print("✅ Alert sent to:", rp)
+                print(
+                    "✅ Sent:",
+                    _normalize_phone(str(detection.get("phone") or "")),
+                )
             except Exception as e:
                 print("❌ Failed:", e)
             _mark_processed(db, det_id)
@@ -192,14 +188,9 @@ async def handle_new_detection(
         )
 
         for farmer in to_alert:
-            phone_clean = str(farmer.get("phone") or "").replace(
-                "whatsapp:", ""
-            ).strip()
-            if not phone_clean:
-                continue
             try:
-                await send_proactive_message(phone_clean, msg_template)
-                print("✅ Alert sent to:", phone_clean)
+                await send_proactive_message(farmer["phone"], msg_template)
+                print("✅ Sent:", farmer["phone"])
             except Exception as e:
                 print("❌ Failed:", e)
 

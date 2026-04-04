@@ -522,6 +522,7 @@ async def process_message(
     language: str = "Hindi",
     history: list | None = None,
     disease_result: dict | None = None,
+    context: dict | None = None,
 ) -> str:
     try:
         text = (message or "").strip()
@@ -580,6 +581,17 @@ async def process_message(
                     )
                 extra_context.append(ctx)
 
+        if context and isinstance(context, dict):
+            lines = []
+            if context.get("crop"):
+                lines.append(f"Known crop: {context['crop']}")
+            if context.get("location"):
+                lines.append(f"Saved location (text): {context['location']}")
+            if context.get("last_disease"):
+                lines.append(f"Last disease detected: {context['last_disease']}")
+            if lines:
+                extra_context.append("FARMER CONTEXT:\n" + "\n".join(lines))
+
         # ── Tool calls ────────────────────────────────────
         tool_status, tool_payload = await use_tools(
             farmer_id=farmer_id,
@@ -632,5 +644,5 @@ async def process_message(
         return final or "Maaf kijiye, jawab generate nahi ho paya. Dobara poochiye."
 
     except Exception as exc:
-        print(f"[agent.process_message] error: {exc}")
+        print("LLM fallback failed:", exc)
         return "Maaf kijiye, technical issue aa gaya. Thodi der baad phir poochiye."

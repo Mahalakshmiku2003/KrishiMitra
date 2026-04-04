@@ -18,6 +18,7 @@ class PriceAlert(Base):
     commodity     = Column(String, nullable=False)
     market        = Column(String, nullable=True)
     target_price  = Column(Float, nullable=False)
+    last_triggered_price = Column(Float, nullable=True)
     condition     = Column(String, default="above")   # "above" or "below"
     is_active     = Column(Boolean, default=True)
     created_at    = Column(DateTime, default=datetime.utcnow)

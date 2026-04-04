@@ -1,3 +1,4 @@
+import asyncio
 import os
 import uuid
 import httpx
@@ -161,6 +162,7 @@ def _lat_lng_from_text_city(text_city: str | None) -> tuple[float | None, float 
 
 def parse_confidence(val):
     try:
+        
         return int(float(str(val).replace("%", "")))
     except (TypeError, ValueError):
         return 30
@@ -366,6 +368,22 @@ async def extract_farmer_data(message: str) -> dict:
     return data
 
 
+async def _farmer_llm_context(phone: str) -> dict:
+    db = AsyncSessionLocal()
+    try:
+        fam, _ = await _get_or_create_farmer(db, phone)
+        if not fam:
+            return {}
+        crop = fam.crops[0] if fam.crops else None
+        return {
+            "crop": crop,
+            "location": fam.location,
+            "last_disease": fam.last_disease,
+        }
+    finally:
+        await db.close()
+
+
 async def _finalize_and_return(
     provider_message_id: str | None,
     response_xml: str,
@@ -519,13 +537,61 @@ async def handle_incoming_message(form_data: dict) -> str:
             response_xml = _twiml(msg_check.reply)
             return await _finalize_and_return(provider_message_id, response_xml)
 
+        if not num_media and "treatment" in message_lower:
+            db_tr = AsyncSessionLocal()
+            try:
+                fam_tr, _ = await _get_or_create_farmer(db_tr, phone)
+            finally:
+                await db_tr.close()
+            from backend.agent.tools import get_treatment
+
+            def get_treatment_for_disease(d: str) -> str:
+                return get_treatment(str(d))
+
+            if fam_tr and fam_tr.last_disease:
+                response_xml = _twiml(get_treatment_for_disease(fam_tr.last_disease))
+                return await _finalize_and_return(provider_message_id, response_xml)
+            response_xml = _twiml(
+                "🌿 Please send an image first so I can detect the disease and suggest treatment."
+            )
+            return await _finalize_and_return(provider_message_id, response_xml)
+
         has_media = num_media > 0 and bool(media_url)
         is_price_query = "price" in message_lower
         is_mandi_query = "mandi" in message_lower
 
+        if not any([has_media, is_price_query, is_mandi_query]):
+            db_i = AsyncSessionLocal()
+            try:
+                hist_i = await get_recent_messages(db_i, phone, limit=10)
+                ctx_i = await _farmer_llm_context(phone)
+            finally:
+                await db_i.close()
+            try:
+                reply_i = await process_message(
+                    farmer_id=phone,
+                    message=body or "Hello",
+                    language=farmer_language or "Hindi",
+                    history=hist_i,
+                    disease_result=None,
+                    context=ctx_i,
+                )
+            except Exception as llm_e:
+                print("LLM fallback failed:", llm_e)
+                reply_i = (
+                    "⚠️ I'm having trouble answering that. Please try again."
+                )
+            db_i2 = AsyncSessionLocal()
+            try:
+                await append_message_pair(db_i2, phone, body or "Hello", reply_i)
+            finally:
+                await db_i2.close()
+            return await _finalize_and_return(provider_message_id, _twiml(reply_i))
+
         image_path = None
         disease_result = None
         reply_override = None
+        disease_persisted = False
 
         if has_media:
             img_check = check_image(content_type)
@@ -554,7 +620,7 @@ async def handle_incoming_message(form_data: dict) -> str:
                 disease_result = None
 
             if not disease_result:
-                reply_override = NO_DISEASE_REPLY
+                reply_override = None
             elif disease_result.get("error"):
                 pass
             else:
@@ -584,6 +650,17 @@ async def handle_incoming_message(form_data: dict) -> str:
                 if "healthy" not in raw_l2 and parse_confidence(
                     disease_result.get("confidence")
                 ) >= 30:
+                    db_pe = AsyncSessionLocal()
+                    try:
+                        await add_disease(db_pe, phone, disease_result)
+                        fam_ad, _ = await _get_or_create_farmer(db_pe, phone)
+                        if fam_ad and disease_result.get("disease"):
+                            fam_ad.last_disease = disease_result.get("disease")
+                            await db_pe.commit()
+                        disease_persisted = True
+                    finally:
+                        await db_pe.close()
+
                     from backend.scheduler import schedule_followup
 
                     confidence = parse_confidence(disease_result.get("confidence"))
@@ -660,17 +737,7 @@ async def handle_incoming_message(form_data: dict) -> str:
             commodity = extract_crop_name(body)
 
             if is_mandi_query and not is_price_query:
-                lat_use, lng_use = None, None
-                tl_lat, tl_lng = _lat_lng_from_text_city(text_location)
-                if tl_lat is not None and tl_lng is not None:
-                    lat_use, lng_use = tl_lat, tl_lng
-                elif farmer_has_gps:
-                    lat_use, lng_use = float(f_lat), float(f_lng)
-
-                if lat_use is None or lng_use is None:
-                    response_xml = _twiml(LOCATION_PROMPT)
-                    return await _finalize_and_return(provider_message_id, response_xml)
-
+                mandi_crop = commodity or saved_crop or "onion"
                 extracted = await extract_farmer_data(body)
                 loc_up = extracted.get("location") if not text_location else None
                 db = AsyncSessionLocal()
@@ -681,26 +748,55 @@ async def handle_incoming_message(form_data: dict) -> str:
                         location=loc_up,
                         crop=extracted.get("crop"),
                     )
-                    results = await find_best_mandi_for_commodity(
-                        farmer_lat=lat_use,
-                        farmer_lng=lng_use,
-                        commodity="onion",
-                        radius_km=500,
-                        top_n=5,
-                        db=db,
-                    )
+                    if text_location:
+                        results = await find_best_mandi_for_commodity(
+                            commodity=mandi_crop,
+                            location_name=text_location,
+                            radius_km=500,
+                            top_n=5,
+                            db=db,
+                        )
+                    else:
+                        if not farmer_has_gps:
+                            response_xml = _twiml(LOCATION_PROMPT)
+                            return await _finalize_and_return(
+                                provider_message_id, response_xml
+                            )
+                        lat_use, lng_use = float(f_lat), float(f_lng)
+                        results = await find_best_mandi_for_commodity(
+                            farmer_lat=lat_use,
+                            farmer_lng=lng_use,
+                            commodity=mandi_crop,
+                            radius_km=500,
+                            top_n=5,
+                            db=db,
+                        )
                 finally:
                     await db.close()
 
                 if results:
                     lines = "\n".join(f"• {m['market']}" for m in results[:3])
+                    reply = (
+                        "📍 Nearby mandis in your area:\n"
+                        f"{lines}\n\n"
+                        f"{MANDI_ONLY_FOOTER}"
+                    )
                 else:
-                    lines = "• Mandi 1\n• Mandi 2\n• Mandi 3"
-                reply = (
-                    "📍 Nearby mandis in your area:\n"
-                    f"{lines}\n\n"
-                    f"{MANDI_ONLY_FOOTER}"
-                )
+                    ctx_md = await _farmer_llm_context(phone)
+                    try:
+                        reply = await process_message(
+                            farmer_id=phone,
+                            message=body or "Hello",
+                            disease_result=None,
+                            language=farmer_language,
+                            history=history_m,
+                            context=ctx_md,
+                        )
+                    except Exception as llm_e:
+                        print("LLM fallback failed:", llm_e)
+                        reply = (
+                            "⚠️ I'm having trouble answering that. Please try again."
+                        )
 
                 db = AsyncSessionLocal()
                 try:
@@ -720,16 +816,6 @@ async def handle_incoming_message(form_data: dict) -> str:
                     response_xml = _twiml(PRICE_ASK_CROP)
                     return await _finalize_and_return(provider_message_id, response_xml)
 
-                lat_use, lng_use = None, None
-                if text_location:
-                    lat_use, lng_use = _lat_lng_from_text_city(text_location)
-                if (lat_use is None or lng_use is None) and farmer_has_gps:
-                    lat_use, lng_use = float(f_lat), float(f_lng)
-
-                if lat_use is None or lng_use is None:
-                    response_xml = _twiml(LOCATION_PROMPT)
-                    return await _finalize_and_return(provider_message_id, response_xml)
-
                 extracted = await extract_farmer_data(body)
                 loc_up = extracted.get("location") if not text_location else None
                 db = AsyncSessionLocal()
@@ -740,25 +826,48 @@ async def handle_incoming_message(form_data: dict) -> str:
                         location=loc_up,
                         crop=extracted.get("crop"),
                     )
-                    results = await find_best_mandi_for_commodity(
-                        farmer_lat=lat_use,
-                        farmer_lng=lng_use,
-                        commodity=crop,
-                        radius_km=500,
-                        top_n=5,
-                        db=db,
-                    )
+                    if text_location:
+                        results = await find_best_mandi_for_commodity(
+                            commodity=crop,
+                            location_name=text_location,
+                            radius_km=500,
+                            top_n=5,
+                            db=db,
+                        )
+                    else:
+                        if not farmer_has_gps:
+                            response_xml = _twiml(LOCATION_PROMPT)
+                            return await _finalize_and_return(
+                                provider_message_id, response_xml
+                            )
+                        lat_use, lng_use = float(f_lat), float(f_lng)
+                        results = await find_best_mandi_for_commodity(
+                            farmer_lat=lat_use,
+                            farmer_lng=lng_use,
+                            commodity=crop,
+                            radius_km=500,
+                            top_n=5,
+                            db=db,
+                        )
                 finally:
                     await db.close()
 
                 if not results:
-                    reply = await process_message(
-                        farmer_id=phone,
-                        message=body or "Hello",
-                        disease_result=None,
-                        language=farmer_language,
-                        history=history_m,
-                    )
+                    ctx_p = await _farmer_llm_context(phone)
+                    try:
+                        reply = await process_message(
+                            farmer_id=phone,
+                            message=body or "Hello",
+                            disease_result=None,
+                            language=farmer_language,
+                            history=history_m,
+                            context=ctx_p,
+                        )
+                    except Exception as llm_e:
+                        print("LLM fallback failed:", llm_e)
+                        reply = (
+                            "⚠️ I'm having trouble answering that. Please try again."
+                        )
                 else:
                     reply = _format_smart_mandi_text(
                         results, crop, farmer_language
@@ -774,19 +883,23 @@ async def handle_incoming_message(form_data: dict) -> str:
                 return await _finalize_and_return(provider_message_id, response_xml)
 
         extracted = await extract_farmer_data(body)
+        text_loc_general = extract_location(body)
 
         db = AsyncSessionLocal()
         try:
             await upsert_farmer_profile(
                 db,
                 phone,
-                location=extracted.get("location"),
+                location=(
+                    extracted.get("location") if not text_loc_general else None
+                ),
                 crop=extracted.get("crop"),
             )
             _record_disease = (
                 disease_result
                 and not disease_result.get("error")
                 and reply_override is None
+                and not disease_persisted
                 and (
                     not has_media
                     or (
@@ -803,24 +916,30 @@ async def handle_incoming_message(form_data: dict) -> str:
         finally:
             await db.close()
 
-        if reply_override is not None:
-            reply = reply_override
-        elif (
-            has_media
-            and disease_result
-            and not disease_result.get("error")
-            and "healthy" not in (disease_result.get("raw_name") or "").lower()
-            and parse_confidence(disease_result.get("confidence")) >= 30
-        ):
-            reply = format_disease_response(disease_result)
-        else:
-            reply = await process_message(
-                farmer_id=phone,
-                message=body or "Hello",
-                language=farmer_language,
-                history=history,
-                disease_result=disease_result,
-            )
+        try:
+            if reply_override is not None:
+                reply = reply_override
+            elif (
+                has_media
+                and disease_result
+                and not disease_result.get("error")
+                and "healthy" not in (disease_result.get("raw_name") or "").lower()
+                and parse_confidence(disease_result.get("confidence")) >= 30
+            ):
+                reply = format_disease_response(disease_result)
+            else:
+                ctx_lm = await _farmer_llm_context(phone)
+                reply = await process_message(
+                    farmer_id=phone,
+                    message=body or "Hello",
+                    language=farmer_language,
+                    history=history,
+                    disease_result=disease_result,
+                    context=ctx_lm,
+                )
+        except Exception as e:
+            print("LLM fallback failed:", e)
+            reply = "⚠️ I'm having trouble answering that. Please try again."
 
         db = AsyncSessionLocal()
         try:
@@ -848,12 +967,14 @@ async def handle_incoming_message(form_data: dict) -> str:
         finally:
             await db_fb.close()
         try:
+            ctx_fb = await _farmer_llm_context(phone)
             reply = await process_message(
                 farmer_id=phone,
                 message=body or "Hello",
                 disease_result=None,
                 language=farmer_language or "Hindi",
                 history=hist_fb,
+                context=ctx_fb,
             )
             return await _finalize_and_return(provider_message_id, _twiml(reply))
         except Exception:
@@ -1030,10 +1151,36 @@ async def handle_location_for_mandi(
 
 
 async def send_proactive_message(phone: str, message: str):
-    print("\n📲 [SIMULATED WHATSAPP MESSAGE]")
-    print(f"To: {phone}")
-    print(message)
-    print("=" * 50)
+    phone_clean = (phone or "").replace("whatsapp:", "").strip()
+    if not phone_clean:
+        print("❌ WhatsApp send skipped: missing phone")
+        return
+    if not ACCOUNT_SID or not AUTH_TOKEN or not FROM_NUMBER:
+        print("❌ WhatsApp send skipped: missing Twilio env")
+        print(f"📲 [FALLBACK MESSAGE to {phone_clean}]")
+        print(message)
+        return
+
+    to_addr = (
+        phone_clean
+        if phone_clean.startswith("whatsapp:")
+        else f"whatsapp:{phone_clean}"
+    )
+
+    def _send():
+        return twilio_client.messages.create(
+            body=message,
+            from_=FROM_NUMBER,
+            to=to_addr,
+        )
+
+    try:
+        msg = await asyncio.to_thread(_send)
+        print("✅ WhatsApp sent:", msg.sid)
+    except Exception as e:
+        print("❌ WhatsApp failed, switching to terminal fallback", e)
+        print(f"📲 [FALLBACK MESSAGE to {phone_clean}]")
+        print(message)
 
 
 async def _download_image(media_url: str, content_type: str) -> str:
