@@ -1,0 +1,134 @@
+{
+  "Tomato Early blight leaf": {
+    "daily_spread_rate": 0.08,
+    "max_spread": 0.95,
+    "spread_type": "fungal",
+    "untreated_note": "Spreads upward through canopy. Lower leaves defoliate first, reducing photosynthesis and yield."
+  },
+  "Tomato late blight leaf": {
+    "daily_spread_rate": 0.18,
+    "max_spread": 1.0,
+    "spread_type": "fungal",
+    "untreated_note": "One of the fastest spreading plant diseases. Can destroy entire crop in 7-10 days in wet conditions."
+  },
+  "Tomato leaf bacterial spot": {
+    "daily_spread_rate": 0.06,
+    "max_spread": 0.85,
+    "spread_type": "bacterial",
+    "untreated_note": "Spreads via rain splash. Accelerates significantly in wet weather."
+  },
+  "Tomato leaf mosaic virus": {
+    "daily_spread_rate": 0.03,
+    "max_spread": 0.70,
+    "spread_type": "viral",
+    "untreated_note": "Spreads through contact and aphid vectors. Infected plants never recover — focus on preventing spread."
+  },
+  "Tomato leaf yellow virus": {
+    "daily_spread_rate": 0.04,
+    "max_spread": 0.75,
+    "spread_type": "viral",
+    "untreated_note": "Spread depends on whitefly population. Control vectors immediately to slow progression."
+  },
+  "Tomato mold leaf": {
+    "daily_spread_rate": 0.07,
+    "max_spread": 0.90,
+    "spread_type": "fungal",
+    "untreated_note": "Thrives in high humidity. Reducing moisture slows spread significantly."
+  },
+  "Tomato septoria leaf spot": {
+    "daily_spread_rate": 0.09,
+    "max_spread": 0.95,
+    "spread_type": "fungal",
+    "untreated_note": "Causes rapid defoliation from bottom up. Can defoliate entire plant within 2-3 weeks."
+  },
+  "Tomato two spotted spider mites leaf": {
+    "daily_spread_rate": 0.12,
+    "max_spread": 1.0,
+    "spread_type": "pest",
+    "untreated_note": "Mite populations double every 3-5 days in hot dry conditions. Act within 24 hours."
+  },
+  "Potato leaf early blight": {
+    "daily_spread_rate": 0.07,
+    "max_spread": 0.90,
+    "spread_type": "fungal",
+    "untreated_note": "Progresses from older to younger leaves. Reduces tuber size if defoliation occurs before maturity."
+  },
+  "Potato leaf late blight": {
+    "daily_spread_rate": 0.20,
+    "max_spread": 1.0,
+    "spread_type": "fungal",
+    "untreated_note": "Fastest spreading disease in this database. Entire field can be destroyed in under 2 weeks."
+  },
+  "Corn leaf blight": {
+    "daily_spread_rate": 0.06,
+    "max_spread": 0.85,
+    "spread_type": "fungal",
+    "untreated_note": "Spreads upward through canopy. Critical if it reaches ear leaf before grain fill."
+  },
+  "Corn leaf gray spot": {
+    "daily_spread_rate": 0.05,
+    "max_spread": 0.80,
+    "spread_type": "fungal",
+    "untreated_note": "Slower progression than blight but causes severe yield loss if upper canopy is affected."
+  },
+  "Corn rust leaf": {
+    "daily_spread_rate": 0.08,
+    "max_spread": 0.90,
+    "spread_type": "fungal",
+    "untreated_note": "Wind carries spores across entire fields rapidly. Scout neighbouring farms too."
+  },
+  "Bell_pepper leaf spot": {
+    "daily_spread_rate": 0.06,
+    "max_spread": 0.85,
+    "spread_type": "bacterial",
+    "untreated_note": "Spreads to fruit causing scabby lesions that reduce market value significantly."
+  },
+  "Cherry Powdery Mildew leaf": {
+    "daily_spread_rate": 0.07,
+    "max_spread": 0.88,
+    "spread_type": "fungal",
+    "untreated_note": "Thrives in dry conditions unlike most fungi. Does not need rain to spread."
+  },
+  "Grape leaf black rot": {
+    "daily_spread_rate": 0.09,
+    "max_spread": 0.95,
+    "spread_type": "fungal",
+    "untreated_note": "Berries are most vulnerable. Fruit infection causes total loss of affected clusters."
+  },
+  "Grape powdery mildew leaf": {
+    "daily_spread_rate": 0.08,
+    "max_spread": 0.90,
+    "spread_type": "fungal",
+    "untreated_note": "Infected berries split and are unmarketable. Protect clusters before 10mm berry size."
+  },
+  "Peach leaf bacterial spot": {
+    "daily_spread_rate": 0.05,
+    "max_spread": 0.80,
+    "spread_type": "bacterial",
+    "untreated_note": "Rain events dramatically accelerate spread. Each rain = new infection cycle."
+  },
+  "Apple Scab Leaf": {
+    "daily_spread_rate": 0.06,
+    "max_spread": 0.85,
+    "spread_type": "fungal",
+    "untreated_note": "Primary infection season is spring. Summer infections less severe but still reduce fruit quality."
+  },
+  "Apple rust leaf": {
+    "daily_spread_rate": 0.05,
+    "max_spread": 0.75,
+    "spread_type": "fungal",
+    "untreated_note": "Requires nearby cedar/juniper as alternate host. Remove alternate hosts to break the cycle."
+  },
+  "Strawberry leaf scorch": {
+    "daily_spread_rate": 0.06,
+    "max_spread": 0.85,
+    "spread_type": "fungal",
+    "untreated_note": "Reduces runner production and next season's yield. Remove infected leaves before winter."
+  },
+  "Squash Powdery mildew leaf": {
+    "daily_spread_rate": 0.10,
+    "max_spread": 0.95,
+    "spread_type": "fungal",
+    "untreated_note": "Spreads rapidly in summer heat. Can cover entire plant within 2 weeks if untreated."
+  }
+}

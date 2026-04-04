@@ -6,6 +6,7 @@ load_dotenv()
 from apscheduler.schedulers.background import BackgroundScheduler
 from routers import diagnose
 from routers.market import router as market_router
+from routers.assistant import router as assistant_router
 from services.price_fetcher import run_daily_fetch
 #from database import init_db
 
@@ -34,6 +35,7 @@ app.add_middleware(
 
 app.include_router(diagnose.router)
 app.include_router(market_router,prefix="/market",tags=["Market"])
+app.include_router(assistant_router)
 
 scheduler = BackgroundScheduler()
 scheduler.add_job(run_daily_fetch, "cron", hour=0, minute=0)
@@ -42,3 +44,7 @@ scheduler.start()
 @app.get("/health")
 def health():
     return {"status": "ok", "service": "KrishiMitra", "version": "2.0.0"}
+
+if __name__ == "__main__":
+    import uvicorn
+    uvicorn.run(app, host="0.0.0.0", port=8001)

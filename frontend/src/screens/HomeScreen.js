@@ -69,17 +69,20 @@ const HomeScreen = ({ navigation }) => {
               <MaterialIcons name="wb-sunny" size={28} color={theme.colors.onTertiaryFixed} />
             </View>
             <View>
-              <Text style={styles.weatherTemp}>32°C</Text>
-              <Text style={styles.weatherCity}>Nashik, MH</Text>
+              <Text style={styles.weatherTemp}>24°C</Text>
+              <Text style={styles.weatherCity}>Karnataka, IN</Text>
             </View>
           </View>
           <View style={styles.weatherRight}>
             <View style={styles.idealStateBadge}>
               <View style={styles.idealStateDot} />
-              <Text style={styles.idealStateText}>IDEAL STATE</Text>
+              <Text style={styles.idealStateText}>MORNING WEATHER</Text>
             </View>
-            <Text style={styles.weatherSubtext}>Good day to spray</Text>
+            <Text style={styles.weatherSubtext}>Cool morning, perfect for irrigation</Text>
           </View>
+          <TouchableOpacity onPress={() => navigation.navigate('Outbreak')} style={styles.weatherDetailBtn}>
+             <MaterialIcons name="chevron-right" size={24} color={theme.colors.primary} />
+          </TouchableOpacity>
         </View>
 
         {/* Server Status Pill */}
@@ -115,13 +118,27 @@ const HomeScreen = ({ navigation }) => {
             </View>
             <MaterialIcons name="arrow-forward-ios" size={18} color={theme.colors.onTertiary} />
           </TouchableOpacity>
+
+          <TouchableOpacity 
+            style={[styles.primaryActionButton, { backgroundColor: theme.colors.tertiaryContainer }]}
+            onPress={() => navigation.navigate('Assistant')}
+            activeOpacity={0.9}
+          >
+            <View style={styles.actionRowPrimary}>
+              <MaterialIcons name="psychology" size={24} color={theme.colors.onTertiaryContainer} />
+              <Text style={[styles.primaryActionText, { color: theme.colors.onTertiaryContainer }]}>AI Kisan Assistant</Text>
+            </View>
+            <MaterialIcons name="arrow-forward-ios" size={18} color={theme.colors.onTertiaryContainer} />
+          </TouchableOpacity>
         </View>
 
         {/* Recent Activity */}
         <View style={styles.recentActivitySection}>
           <View style={styles.sectionHeader}>
             <Text style={styles.sectionTitle}>Recent Activity</Text>
-            <TouchableOpacity><Text style={styles.seeAllText}>SEE ALL</Text></TouchableOpacity>
+            <TouchableOpacity onPress={() => navigation.navigate('Outbreak')}>
+              <Text style={styles.seeAllText}>VIEW DETAILS</Text>
+            </TouchableOpacity>
           </View>
 
           {recentDiagnosis ? (
@@ -149,7 +166,28 @@ const HomeScreen = ({ navigation }) => {
                     <MaterialIcons name="medical-services" size={14} color={theme.colors.primary} />
                     <Text style={styles.activityFooterText}>Treatment Plan Ready</Text>
                   </View>
-                  <TouchableOpacity onPress={() => navigation.navigate('Diagnose', { screen: 'DiagnosisResult' })} style={styles.viewDetailsBtn}>
+                  <TouchableOpacity 
+                    onPress={() => {
+                      if (recentDiagnosis && recentDiagnosis.image_uri) {
+                        navigation.navigate('Diagnose', { 
+                          screen: 'DiagnosisResult', 
+                          initial: false,
+                          params: { result: { 
+                            status: 'cached', 
+                            detections: [{ 
+                              disease: recentDiagnosis.disease_name || 'Unknown', 
+                              confidence: recentDiagnosis.confidence || 0, 
+                              severity: recentDiagnosis.severity || 'Medium' 
+                            }], 
+                            annotated_image: recentDiagnosis.image_uri.includes(',') ? 
+                              recentDiagnosis.image_uri.split(',')[1] : 
+                              recentDiagnosis.image_uri
+                          }} 
+                        });
+                      }
+                    }} 
+                    style={styles.viewDetailsBtn}
+                  >
                     <Text style={styles.viewDetailsText}>VIEW DETAILS</Text>
                     <MaterialIcons name="chevron-right" size={14} color={theme.colors.onSurfaceVariant} />
                   </TouchableOpacity>
@@ -167,23 +205,32 @@ const HomeScreen = ({ navigation }) => {
 
         {/* Quick Stats Bento Grid */}
         <View style={styles.bentoGrid}>
-          <View style={styles.bentoItemSmall}>
+          <TouchableOpacity 
+            onPress={() => navigation.navigate('Diagnose')}
+            style={styles.bentoItemSmall}
+          >
             <MaterialIcons name="analytics" size={24} color={theme.colors.primary} />
             <View style={styles.bentoTextGroup}>
               <Text style={styles.bentoVal}>2</Text>
               <Text style={styles.bentoLabel}>DIAGNOSES TODAY</Text>
             </View>
-          </View>
+          </TouchableOpacity>
           
-          <View style={styles.bentoItemSmall}>
+          <TouchableOpacity 
+            onPress={() => navigation.navigate('Market')}
+            style={styles.bentoItemSmall}
+          >
             <MaterialIcons name="trending-up" size={24} color={theme.colors.tertiary} />
             <View style={styles.bentoTextGroup}>
               <Text style={styles.bentoVal}>₹3200</Text>
               <Text style={styles.bentoLabel}>AVG TOMATO/QUINTAL</Text>
             </View>
-          </View>
+          </TouchableOpacity>
 
-          <View style={styles.bentoItemLarge}>
+          <TouchableOpacity 
+            onPress={() => navigation.navigate('Outbreak')}
+            style={styles.bentoItemLarge}
+          >
             <View style={styles.bentoLargeTextGroup}>
               <Text style={styles.bentoLargeLabel}>WEATHER RISK</Text>
               <Text style={styles.bentoLargeVal}>Very Low</Text>
@@ -191,7 +238,7 @@ const HomeScreen = ({ navigation }) => {
             <View style={styles.bentoIconBg}>
               <MaterialIcons name="verified-user" size={36} color={theme.colors.onPrimaryContainer} />
             </View>
-          </View>
+          </TouchableOpacity>
         </View>
         
         {/* Padding for bottom tab nav */}
@@ -316,6 +363,9 @@ const styles = StyleSheet.create({
     fontWeight: '700',
     color: theme.colors.primary,
     ...theme.typography.label,
+  },
+  weatherDetailBtn: {
+    padding: 4,
   },
   weatherSubtext: {
     fontSize: 12,

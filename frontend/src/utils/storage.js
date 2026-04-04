@@ -42,3 +42,22 @@ export const getCustomBaseUrl = async () => {
     return null;
   }
 };
+
+export const saveAssistantChat = async (messages) => {
+  try {
+    const jsonValue = JSON.stringify(messages.slice(-50)); // Keep last 50
+    await AsyncStorage.setItem('assistant_chat', jsonValue);
+  } catch (e) {
+    console.error("Error saving chat", e);
+  }
+};
+
+export const getAssistantChat = async () => {
+  try {
+    const jsonValue = await AsyncStorage.getItem('assistant_chat');
+    return jsonValue != null ? JSON.parse(jsonValue) : [];
+  } catch (e) {
+    console.error("Error reading chat", e);
+    return [];
+  }
+};

@@ -56,6 +56,11 @@ const MarketPricesScreen = ({ navigation }) => {
 
   const POPULAR_STATES = ['All States', 'Maharashtra', 'Karnataka', 'Uttar Pradesh', 'Gujarat'];
 
+  // 🚀 Auto-load data on mount
+  useEffect(() => {
+    handleSearch();
+  }, []);
+
   const handleSearch = async () => {
     if (!commodity.trim()) {
       Toast.show({ type: 'error', text1: 'Required', text2: 'Please enter a commodity name' });

@@ -1,9 +1,9 @@
 import React from 'react';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
-import { MaterialIcons } from '@expo/vector-icons';
 import { getFocusedRouteNameFromRoute } from '@react-navigation/native';
 import { View, StyleSheet, Platform } from 'react-native';
+import { Ionicons, MaterialIcons } from '@expo/vector-icons';
 
 import { theme } from '../theme';
 
@@ -14,7 +14,9 @@ import MarketHomeScreen from '../screens/MarketHomeScreen';
 import MarketPricesScreen from '../screens/MarketPricesScreen';
 import NearbyMandisScreen from '../screens/NearbyMandisScreen';
 import PricePredictionScreen from '../screens/PricePredictionScreen';
+import AssistantScreen from '../screens/AssistantScreen';
 import SettingsScreen from '../screens/SettingsScreen';
+import OutbreakRadarScreen from '../screens/OutbreakRadarScreen';
 
 const Tab = createBottomTabNavigator();
 const Stack = createNativeStackNavigator();
@@ -42,33 +44,32 @@ function MarketStack() {
 export default function AppNavigator() {
   return (
     <Tab.Navigator
-      screenOptions={({ route }) => ({
-        tabBarIcon: ({ focused }) => {
-          let iconName;
-          if (route.name === 'Home') iconName = 'home';
-          else if (route.name === 'Diagnose') iconName = 'photo-camera';
-          else if (route.name === 'Market') iconName = 'storefront';
-          else if (route.name === 'Settings') iconName = 'settings';
-          
-          return (
-            <View style={[styles.iconContainer, focused && styles.iconContainerActive]}>
-                <MaterialIcons name={iconName} size={22} color={focused ? theme.colors.primary : '#57534e'} />
-            </View>
-          );
-        },
-        tabBarActiveTintColor: theme.colors.primary,
-        tabBarInactiveTintColor: '#78716c',
+      screenOptions={{
         headerShown: false,
         tabBarShowLabel: true,
         tabBarLabelStyle: styles.tabLabel,
         tabBarStyle: styles.tabBar,
-      })}
+        tabBarInactiveTintColor: '#78716c',
+      }}
     >
-      <Tab.Screen name="Home" component={HomeScreen} />
+      <Tab.Screen 
+        name="Home" 
+        component={HomeScreen} 
+        options={{
+          tabBarIcon: ({ color, size }) => (
+            <MaterialIcons name="home" size={size} color={color} />
+          ),
+          tabBarActiveTintColor: theme.colors.primary,
+        }}
+      />
       <Tab.Screen 
         name="Diagnose" 
         component={DiagnoseStack} 
         options={({ route }) => ({
+          tabBarIcon: ({ color, size }) => (
+            <MaterialIcons name="photo-camera" size={size} color={color} />
+          ),
+          tabBarActiveTintColor: theme.colors.primary,
           tabBarStyle: ((route) => {
             const routeName = getFocusedRouteNameFromRoute(route) ?? "DiagnoseMain";
             if (routeName === "DiagnosisResult") return { display: "none" };
@@ -80,6 +81,10 @@ export default function AppNavigator() {
         name="Market" 
         component={MarketStack} 
         options={({ route }) => ({
+          tabBarIcon: ({ color, size }) => (
+            <MaterialIcons name="storefront" size={size} color={color} />
+          ),
+          tabBarActiveTintColor: theme.colors.primary,
           tabBarStyle: ((route) => {
             const routeName = getFocusedRouteNameFromRoute(route) ?? "MarketHome";
             if (routeName === "MarketPrices" || routeName === "NearbyMandis" || routeName === "PricePrediction") {
@@ -89,7 +94,42 @@ export default function AppNavigator() {
           })(route),
         })}
       />
-      <Tab.Screen name="Settings" component={SettingsScreen} />
+      <Tab.Screen 
+        name="Outbreak" 
+        component={OutbreakRadarScreen} 
+        options={{ 
+          title: 'Outbreak',
+          tabBarIcon: ({ focused, size }) => (
+            <Ionicons 
+              name={focused ? "warning" : "warning-outline"} 
+              size={size} 
+              color={focused ? "#C62828" : "#78716c"} 
+            />
+          ),
+          tabBarActiveTintColor: '#C62828',
+        }}
+      />
+      <Tab.Screen 
+        name="Assistant" 
+        component={AssistantScreen} 
+        options={{ 
+          title: 'Assistant',
+          tabBarIcon: ({ color, size }) => (
+            <MaterialIcons name="psychology" size={size} color={color} />
+          ),
+          tabBarActiveTintColor: theme.colors.primary,
+        }}
+      />
+      <Tab.Screen 
+        name="Settings" 
+        component={SettingsScreen} 
+        options={{
+          tabBarIcon: ({ color, size }) => (
+            <MaterialIcons name="settings" size={size} color={color} />
+          ),
+          tabBarActiveTintColor: theme.colors.primary,
+        }}
+      />
     </Tab.Navigator>
   );
 }

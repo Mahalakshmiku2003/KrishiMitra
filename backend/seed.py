@@ -6,12 +6,13 @@ from datetime import datetime, timedelta, date
 DB_PATH = 'krishimitra.db'
 
 # Constants for seeding
-COMMODITIES = ["Tomato", "Onion", "Potato"]
+COMMODITIES = ["Tomato", "Onion", "Potato", "Wheat", "Rice", "Cotton", "Maize"]
 STATES = {
-    "Maharashtra": ["Nashik", "Pune", "Mumbai"],
-    "Karnataka": ["Bangalore", "Mysore", "Hubli"],
-    "Uttar Pradesh": ["Lucknow", "Agra", "Kanpur"],
-    "Gujarat": ["Ahmedabad", "Surat", "Rajkot"]
+    "Maharashtra": ["Nashik", "Pune", "Mumbai", "Nagpur", "Aurangabad"],
+    "Karnataka": ["Bangalore", "Mysore", "Hubli", "Dharwad"],
+    "Uttar Pradesh": ["Lucknow", "Agra", "Kanpur", "Varanasi"],
+    "Gujarat": ["Ahmedabad", "Surat", "Rajkot", "Vadodara"],
+    "Telangana": ["Warangal", "Nizamabad", "Khammam", "Karimnagar"]
 }
 
 def seed_data():
@@ -78,7 +79,7 @@ def seed_data():
     conn.commit()
     conn.close()
     print(f"Successfully seeded {len(mandi_records)} price records across {len(STATES)} states!")
-    print("Historical data (14 days) added for Tomato, Onion, and Potato.")
+    print("Historical data (14 days) added for all commodities (Tomato, Onion, Potato, Wheat, Rice, Cotton, Maize).")
 
 if __name__ == "__main__":
     seed_data()

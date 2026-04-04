@@ -5,8 +5,9 @@ from fastapi.responses import JSONResponse
 
 from services.image_utils import compress_image
 from services.yolo_service import run_inference
+from agent.diagnose import diagnose_image as agent_diagnose
 from database import save_diagnosis
-from config import UPLOAD_DIR
+from config import UPLOAD_DIR, CLASSIFIER_PATH, DETECTOR_PATH
 
 router = APIRouter()
 
@@ -36,12 +37,35 @@ async def diagnose_image(
         f.write(compressed)
 
     try:
-        result, annotated_bytes = run_inference(compressed)
+        # 🧪 Use specialized ONNX models from stitch/ for diagnosis
+        agent_result = agent_diagnose(filepath, crop_type=crop_type)
+        
+        # 📸 Still run YOLO for bounding box visualization on the UI
+        yolo_result, annotated_bytes = run_inference(compressed)
+        
+        # Merge results: Use Agent names, but YOLO for bbox if status is diseased
+        merged_detections = []
+        if not agent_result.get("error") and agent_result.get("raw_name") != "healthy":
+            # 🚨 FIX: Pass raw float for confidence (0-1) so frontend can multiply by 100
+            merged_detections.append({
+                "disease":    agent_result["disease"],
+                "confidence": agent_result["confidence_num"], # Raw float 0.0-1.0
+                "severity":   agent_result["severity"]["level"],
+                "remedies":   agent_result["remedies"],
+                "urgency":    agent_result["urgency"],
+                "pathogen":   agent_result["pathogen"],
+                "symptoms":   agent_result["symptoms"],
+                # Use YOLO's first box if available
+                "bbox": yolo_result["detections"][0]["bbox"] if yolo_result["detections"] else None
+            })
+        
+        final_status = "diseased" if merged_detections else "healthy"
+        
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Inference failed: {e}")
 
-    if result["status"] == "diseased" and result["detections"]:
-        top = result["detections"][0]
+    if merged_detections:
+        top = merged_detections[0]
         try:
             save_diagnosis({
                 "farmer_id":    farmer_id,
@@ -56,7 +80,8 @@ async def diagnose_image(
             logging.warning(f"DB save failed (non-fatal): {db_err}")
 
     return JSONResponse(content={
-        "status":           result["status"],
-        "detections":       result["detections"],
+        "status":           final_status,
+        "detections":       merged_detections,
         "annotated_image":  base64.b64encode(annotated_bytes).decode("utf-8"),
+        "agent_analysis":   agent_result
     })
