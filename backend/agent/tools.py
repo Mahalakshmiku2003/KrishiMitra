@@ -19,14 +19,13 @@ PROGRESSION_DB = (
     if (ROOT / "backend" / "data" / "progression_db.json").exists()
     else {}
 )
-_mandi_raw = (
+MANDI_COORDS = (
     json.loads((ROOT / "backend" / "data" / "mandi_coordinates.json").read_text())
     if (ROOT / "backend" / "data" / "mandi_coordinates.json").exists()
-    else []
+    else {}
 )
-MANDI_ROWS = _mandi_raw if isinstance(_mandi_raw, list) else []
 
-print(f"✅ Tools loaded: {len(DISEASE_DB)} diseases, {len(MANDI_ROWS)} mandi rows")
+print(f"✅ Tools loaded: {len(DISEASE_DB)} diseases, {len(MANDI_COORDS)} mandis")
 
 
 class tool:
@@ -187,17 +186,18 @@ def get_nearby_mandis(location: str) -> str:
     location_lower = location.lower()
     found = []
 
-    for row in MANDI_ROWS:
-        mname = (row.get("market") or "").lower()
-        st = (row.get("state") or "").lower()
-        dist = (row.get("district") or "").lower()
-        if location_lower in mname or location_lower in st or location_lower in dist:
+    # Search by city name
+    for mandi, coords in MANDI_COORDS.items():
+        if (
+            location_lower in mandi.lower()
+            or location_lower in coords.get("state", "").lower()
+        ):
             found.append(
                 {
-                    "name": row.get("market", ""),
-                    "state": row.get("state", ""),
-                    "lat": row["lat"],
-                    "lng": row["lng"],
+                    "name": mandi,
+                    "state": coords["state"],
+                    "lat": coords["lat"],
+                    "lng": coords["lng"],
                 }
             )
 

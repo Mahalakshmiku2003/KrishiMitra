@@ -2,9 +2,9 @@
 services/whatsapp_service.py
 """
 
+import asyncio
 import os
 import uuid
-import httpx
 import tempfile
 from pathlib import Path
 from twilio.rest import Client
@@ -12,29 +12,19 @@ from twilio.twiml.messaging_response import MessagingResponse
 from dotenv import load_dotenv
 
 from agent.agent import process_message
-from agent.diagnose import (
-    diagnose_image_for_stated_crop,
-    resolve_plantvillage_prefix,
-)
+from agent.diagnose import diagnose_image
 from agent.guardrails import check_message, check_image
 from services.location_state import _pending_location
 from services.db import SessionLocal
 
 from farmer_store import (
-    get_farmer_language,
     get_farmer_location,
     save_farmer_location,
     record_detection_if_outbreak,
-    save_disease_diagnosis_to_farmer,
+    save_farmer_diagnosis,
 )
 from services.language_onboarding import maybe_handle_language_onboarding
-from services.profile_onboarding import maybe_handle_name_onboarding
-from services.disease_image_pending import (
-    clear_pending_crop_image,
-    peek_pending_crop_image,
-    set_pending_crop_image,
-    take_pending_crop_image,
-)
+from services.name_onboarding import maybe_handle_name_onboarding
 from services.market_service import find_nearest_from_json, find_best_mandi_for_commodity
 
 load_dotenv()
@@ -52,75 +42,6 @@ if not (_MODEL_DIR / "classifier.onnx").exists():
     _MODEL_DIR = AGENT_DIR / "models"
 CLASSIFIER_PATH = str(_MODEL_DIR / "classifier.onnx")
 DETECTOR_PATH   = str(_MODEL_DIR / "detector.onnx")
-
-
-def ask_which_crop_message(lang: str | None) -> str:
-    l = (lang or "hindi").strip().lower()
-    if l == "kannada":
-        return (
-            "ಫೋಟೋ ಸಿಕ್ಕಿತು. ದಯವಿಟ್ಟು *ಯಾವ ಬೆಳೆ* ಎಂದು ಸಂದೇಶದಲ್ಲಿ ಬರೆಯಿರಿ "
-            "(ಉದಾ: tomato, potato, corn) — ನಂತರ ರೋಗ ತಪಾಸಣೆ ಮಾಡುತ್ತೇವೆ. 🌾"
-        )
-    if l == "english":
-        return (
-            "Photo received. Please reply with the *crop name* "
-            "(e.g. tomato, potato, corn) so we can diagnose the disease. 🌾"
-        )
-    return (
-        "Photo mil gaya. Kripya *kis fasal* ki photo hai yeh likh kar bhejein "
-        "(jaise: tomato, potato, corn) — phir main bimari check karunga. 🌾"
-    )
-
-
-def disease_followup_scheduled_note(lang: str | None) -> str:
-    l = (lang or "hindi").strip().lower()
-    if l == "kannada":
-        return (
-            "\n\n*ಫಾಲೋ-ಅಪ್:* ನಾವು ಪ್ರತಿ *2 ದಿನಗಳಿಗೊಮ್ಮೆ* ನಿಮ್ಮ ಫಸಲಿನ ಆರೋಗ್ಯ "
-            "ವಿಚಾರಿಸುತ್ತೇವೆ. 🌾"
-        )
-    if l == "english":
-        return (
-            "\n\n*Follow-up:* We will check on your crop health *every 2 days*. 🌾"
-        )
-    return (
-        "\n\n*Follow-up:* Main aapki fasal ka haal *har 2 din* baad poochhunga. 🌾"
-    )
-
-
-def deliver_whatsapp_reply(form_data: dict, reply: str) -> str:
-    """
-    Send the bot reply with Twilio REST API (works reliably with async webhooks).
-    Returns XML string for the HTTP response (empty <Response> when REST succeeds).
-    """
-    reply = (reply or "Sorry, please try again.").strip()
-    if len(reply) > 4000:
-        reply = reply[:3990] + "…"
-
-    to_raw = (form_data.get("From") or "").strip()
-    if not to_raw:
-        twiml = MessagingResponse()
-        twiml.message(reply)
-        return str(twiml)
-
-    if not to_raw.startswith("whatsapp:"):
-        to_raw = f"whatsapp:{to_raw.replace('whatsapp:', '').strip()}"
-
-    try:
-        if not ACCOUNT_SID or not AUTH_TOKEN or not FROM_NUMBER:
-            raise RuntimeError("Twilio credentials or FROM_NUMBER not set")
-        twilio_client.messages.create(
-            from_=FROM_NUMBER,
-            to=to_raw,
-            body=reply,
-        )
-        print(f"[WhatsApp] REST outbound reply sent → {to_raw}")
-        return str(MessagingResponse())
-    except Exception as e:
-        print(f"[WhatsApp] REST send failed, TwiML fallback: {e}")
-        twiml = MessagingResponse()
-        twiml.message(reply)
-        return str(twiml)
 
 
 async def handle_incoming_message(form_data: dict) -> str:
@@ -146,21 +67,26 @@ async def handle_incoming_message(form_data: dict) -> str:
         save_farmer_location(phone, lat, lng)
         context   = _pending_location.pop(phone, None)
         commodity = context.get("commodity") if context else None  # None = Flow B
+        state_filter = context.get("state_filter") if context else None
         reply = await handle_location_for_mandi(
             phone=phone,
             lat=float(latitude),
             lng=float(longitude),
             commodity=commodity,
-            state_filter=None,
+            state_filter=state_filter,
         )
-        return deliver_whatsapp_reply(form_data, reply)
+        twiml = MessagingResponse()
+        twiml.message(reply)
+        return str(twiml)
 
     # ── 2. Image message ─────────────────────────────────────────────────────
     image_path = None
     if num_media > 0 and media_url:
         img_check = check_image(content_type)
         if not img_check.allowed:
-            return deliver_whatsapp_reply(form_data, img_check.reply)
+            twiml = MessagingResponse()
+            twiml.message(img_check.reply)
+            return str(twiml)
         try:
             image_path = await _download_image(media_url, content_type)
         except Exception as e:
@@ -169,99 +95,40 @@ async def handle_incoming_message(form_data: dict) -> str:
     # ── 3. Guardrail check ───────────────────────────────────────────────────
     msg_check = check_message(body)
     if not msg_check.allowed:
-        return deliver_whatsapp_reply(form_data, msg_check.reply)
+        twiml = MessagingResponse()
+        twiml.message(msg_check.reply)
+        return str(twiml)
 
     # ── 3b. Language preference (first contact: hi/hello or 1/2/3) ───────────
     if num_media == 0:
         lang_reply = maybe_handle_language_onboarding(phone, body)
         if lang_reply is not None:
-            return deliver_whatsapp_reply(form_data, lang_reply)
+            twiml = MessagingResponse()
+            twiml.message(lang_reply)
+            return str(twiml)
 
-    # ── 3c. Name after language (pending capture) ───────────────────────────
+    # ── 3c. Name (after language) ─────────────────────────────────────────────
     if num_media == 0:
         name_reply = maybe_handle_name_onboarding(phone, body)
         if name_reply is not None:
-            return deliver_whatsapp_reply(form_data, name_reply)
+            twiml = MessagingResponse()
+            twiml.message(name_reply)
+            return str(twiml)
 
-    # ── 3d. Pending disease photo → farmer sends crop name ─────────────────
+    # ── 4. Normal agent flow ─────────────────────────────────────────────────
     disease_result = None
-    if num_media == 0:
-        if peek_pending_crop_image(phone):
-            low = body.strip().lower()
-            if low in ("cancel", "skip", "stop", "radd", "रद्द", "cancel karo"):
-                clear_pending_crop_image(phone)
-                return deliver_whatsapp_reply(
-                    form_data,
-                    "Theek hai, photo radd kar di. Zarurat ho to nayi photo bhejein. 🌾",
-                )
-            if not resolve_plantvillage_prefix(body):
-                return deliver_whatsapp_reply(
-                    form_data,
-                    "Kripya sahi fasal ka naam bhejein: tomato, potato, corn, "
-                    "pepper, grape, apple, cherry, strawberry, squash, soybean, "
-                    "blueberry, orange, peach. 🌾",
-                )
-            img_p = take_pending_crop_image(phone)
-            if not img_p or not os.path.isfile(img_p):
-                return deliver_whatsapp_reply(
-                    form_data,
-                    "Photo purani ho gayi — kripya dubara photo bhejein. 🌾",
-                )
-            try:
-                disease_result = diagnose_image_for_stated_crop(
-                    img_p,
-                    CLASSIFIER_PATH,
-                    DETECTOR_PATH if os.path.exists(DETECTOR_PATH) else None,
-                    body,
-                )
-            finally:
-                if os.path.isfile(img_p):
-                    try:
-                        os.remove(img_p)
-                    except OSError:
-                        pass
-
-    # ── 3e. New photo → ask crop first (no immediate full diagnosis) ─────────
-    if num_media > 0 and image_path:
-        if os.path.exists(CLASSIFIER_PATH):
-            set_pending_crop_image(phone, image_path)
-            return deliver_whatsapp_reply(
-                form_data, ask_which_crop_message(get_farmer_language(phone))
-            )
-        print(f"[WhatsApp] Missing classifier at {CLASSIFIER_PATH}")
-        try:
-            os.remove(image_path)
-        except OSError:
-            pass
-
-    followup_scheduled = False
-    if disease_result:
-        followup_scheduled = save_disease_diagnosis_to_farmer(
-            phone, disease_result, body
+    if image_path and os.path.exists(CLASSIFIER_PATH):
+        disease_result = diagnose_image(
+            image_path=image_path,
+            classifier_path=CLASSIFIER_PATH,
+            detector_path=DETECTOR_PATH if os.path.exists(DETECTOR_PATH) else None,
         )
-        record_detection_if_outbreak(phone, disease_result, body)
+    elif image_path:
+        print(f"[WhatsApp] Missing classifier at {CLASSIFIER_PATH}")
 
-    # Optional ORM profile sync (Farmer / crops / diseases tables)
-    farmer_id_orm = (form_data.get("From") or "").strip() or f"whatsapp:{phone}"
-    try:
-        from db.deps import get_db
-        from db.crud import upsert_farmer, add_crop, add_disease
-        from services.extract_farmer_llm import extract_farmer_data as llm_extract
-
-        data = await llm_extract(body or "")
-        loc = data.get("location")
-        crop = data.get("crop")
-        dis = data.get("disease")
-        if disease_result:
-            dis = disease_result.get("disease")
-        async for db in get_db():
-            await upsert_farmer(db, farmer_id_orm, location=loc)
-            if crop:
-                await add_crop(db, farmer_id_orm, crop)
-            if dis:
-                await add_disease(db, farmer_id_orm, dis)
-    except Exception as e:
-        print(f"[WhatsApp] ORM side-sync skipped: {e}")
+    if disease_result:
+        save_farmer_diagnosis(phone, disease_result, body)
+        record_detection_if_outbreak(phone, disease_result)
 
     reply = await process_message(
         farmer_id=phone,
@@ -269,11 +136,14 @@ async def handle_incoming_message(form_data: dict) -> str:
         disease_result=disease_result,
     )
 
-    if followup_scheduled:
-        reply += disease_followup_scheduled_note(get_farmer_language(phone))
+    if image_path and os.path.exists(image_path):
+        os.remove(image_path)
 
-    print(f"[DEBUG] Agent reply length={len(reply)}")
-    return deliver_whatsapp_reply(form_data, reply)
+    twiml = MessagingResponse()
+    twiml.message(reply)
+    twiml_str = str(twiml)
+    print(f"[DEBUG] Sending TwiML: {twiml_str}")
+    return twiml_str
 
 
 # services/whatsapp_service.py — replace handle_location_for_mandi entirely
@@ -286,16 +156,22 @@ async def handle_location_for_mandi(
     lng: float,
     commodity: str | None,
     state_filter: str | None = None,
-    list_top_n: int = 3,
 ) -> str:
 
     # ── Flow B: no commodity — nearest mandis from JSON ──────────────────────
     if not commodity:
-        nearest = find_nearest_from_json(lat, lng, top_n=5)
+        nearest = find_nearest_from_json(lat, lng, top_n=5, state=state_filter)
         if not nearest:
-            return "Aapke paas koi mandi nahi mili.\n\nKoi aur madad chahiye? 🌾"
+            hint = f" ({state_filter})" if state_filter else ""
+            return (
+                f"Aapke paas{hint} koi mandi nahi mili (data mein).\n\n"
+                f"Koi aur madad chahiye? 🌾"
+            )
 
-        reply = "*Aapke sabse paas ke mandis:*\n\n"
+        if state_filter:
+            reply = f"*{state_filter}* ke mandi (aapki location se doori):\n\n"
+        else:
+            reply = "*Aapke sabse paas ke mandis:*\n\n"
         for i, m in enumerate(nearest, 1):
             reply += f"{i}. *{m['market']}* — {m['distance_km']} km\n"
             if m.get("district"):
@@ -311,32 +187,21 @@ async def handle_location_for_mandi(
             farmer_lng=lng,
             commodity=commodity,
             radius_km=500,
-            top_n=max(3, min(list_top_n, 15)),
+            top_n=3,
             db=db,
-            state_filter=state_filter,
+            state=state_filter,
         )
     finally:
         db.close()
 
     if not results:
+        st = f" *{state_filter}* mein" if state_filter else ""
         return (
-            f"*{commodity.title()}* ke liye 500km mein koi mandi nahi mili.\n"
-            f"Pehle yeh run karein: POST /market/fetch\n\n"
+            f"*{commodity.title()}* ke liye{st} 500km mein koi mandi nahi mili "
+            f"(database / coordinates).\n"
+            f"Doosre state ke liye message mein state ka naam likhein, phir location bhejein.\n\n"
             f"Koi aur madad chahiye? 🌾"
         )
-
-    if list_top_n > 5:
-        reply = (
-            f"*{commodity.title()}* — *paas ke mandi (net price ke hisaab se):*\n\n"
-        )
-        for i, m in enumerate(results, 1):
-            reply += (
-                f"{i}. *{m['market']}* — {m['district']}, {m['state']}\n"
-                f"   Modal: Rs.{m['modal_price']}/q | Doori: {m['distance_km']} km\n"
-                f"   Transport ~Rs.{m['transport_cost']} | *Net ~Rs.{m['net_price']}/q*\n\n"
-            )
-        reply += "Koi aur madad chahiye? 🌾"
-        return reply
 
     best = results[0]
     reply = (
@@ -369,21 +234,20 @@ async def send_proactive_message(phone: str, message: str):
 
 
 async def _download_image(media_url: str, content_type: str) -> str:
+    from services.twilio_media_download import download_twilio_media_sync
+
     ext_map = {
         "image/jpeg": ".jpg",
         "image/jpg":  ".jpg",
         "image/png":  ".png",
         "image/webp": ".webp",
     }
-    ext      = ext_map.get(content_type, ".jpg")
+    ext = ext_map.get(content_type, ".jpg")
     filepath = os.path.join(TEMP_DIR, f"kisan_{uuid.uuid4().hex}{ext}")
 
-    auth = httpx.BasicAuth(ACCOUNT_SID, AUTH_TOKEN)
-    async with httpx.AsyncClient(auth=auth) as client:
-        response = await client.get(media_url, follow_redirects=True, timeout=30.0)
-        response.raise_for_status()
-        with open(filepath, "wb") as f:
-            f.write(response.content)
+    data = await asyncio.to_thread(download_twilio_media_sync, media_url)
+    with open(filepath, "wb") as f:
+        f.write(data)
 
     print(f"[WhatsApp] Image saved to {filepath}")
     return filepath

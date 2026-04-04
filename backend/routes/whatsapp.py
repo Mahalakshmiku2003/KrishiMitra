@@ -25,7 +25,4 @@ async def whatsapp_webhook(
         "Latitude": Latitude, "Longitude": Longitude, "Address": Address,
     }
     twiml_xml = await handle_incoming_message(form_data)
-    return Response(
-        content=twiml_xml.encode("utf-8"),
-        media_type="application/xml; charset=utf-8",
-    )
+    return Response(content=twiml_xml, media_type="text/xml")

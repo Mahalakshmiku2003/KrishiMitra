@@ -7,8 +7,7 @@ from __future__ import annotations
 import re
 
 from farmer_store import get_farmer_language, set_farmer_language, normalize_phone
-from services.onboarding_state import mark_pending_name
-from services.profile_onboarding import farmer_needs_name
+from services.profile_state import mark_pending_name
 
 LANGUAGE_PROMPT = """🌾 KrishiMitra mein aapka swagat hai!
 ಕೃಷಿಮಿತ್ರಕ್ಕೆ ಸ್ವಾಗತ! / Welcome to KrishiMitra!
@@ -23,16 +22,22 @@ Choose your language:
 
 1, 2 ya 3 reply karein / 1, 2 ಅಥವಾ 3 ಉತ್ತರಿಸಿ / Reply with 1, 2 or 3"""
 
-_CONFIRM_THANKS = {
-    "hindi": "Dhanyavaad! Aapki bhasha *Hindi* set ho gayi hai.",
-    "kannada": "ಧನ್ಯವಾದಗಳು! ನಿಮ್ಮ ಭಾಷೆ *ಕನ್ನಡ* ಆಯ್ಕೆ ಮಾಡಲಾಗಿದೆ.",
-    "english": "Thank you! Your language is set to *English*.",
-}
-
-_NAME_LINES = {
-    "hindi": "\n\nApna *naam* bhejein (sirf naam, jaise: Ramesh):",
-    "kannada": "\n\nನಿಮ್ಮ *ಹೆಸರು* ಕಳುಹಿಸಿ (ಉದಾ: ರಮೇಶ್):",
-    "english": "\n\nPlease send your *name* (e.g. Ramesh):",
+_CONFIRM = {
+    "hindi": (
+        "Dhanyavaad! Aapki bhasha *Hindi* set ho gayi hai.\n\n"
+        "Ab kripya apna *naam* type karke bhejein (ek line mein).\n\n"
+        "Koi aur madad chahiye? 🌾"
+    ),
+    "kannada": (
+        "ಧನ್ಯವಾದಗಳು! ನಿಮ್ಮ ಭಾಷೆ *ಕನ್ನಡ* ಆಯ್ಕೆ ಮಾಡಲಾಗಿದೆ.\n\n"
+        "ಈಗ ದಯವಿಟ್ಟು ನಿಮ್ಮ *ಹೆಸರು* ಟೈಪ್ ಮಾಡಿ (ಒಂದೇ ಸಾಲು).\n\n"
+        "ಮತ್ತಷ್ಟು ಸಹಾಯ ಬೇಕೇ? 🌾"
+    ),
+    "english": (
+        "Thank you! Your language is set to *English*.\n\n"
+        "Please type your *name* (one line).\n\n"
+        "Need anything else? 🌾"
+    ),
 }
 
 
@@ -95,13 +100,8 @@ def maybe_handle_language_onboarding(phone: str, body: str) -> str | None:
     choice = _parse_language_choice(body)
     if choice:
         set_farmer_language(pid, choice)
-        msg = _CONFIRM_THANKS[choice]
-        if farmer_needs_name(pid):
-            mark_pending_name(pid)
-            msg += _NAME_LINES[choice]
-        else:
-            msg += "\n\nKoi aur madad chahiye? 🌾"
-        return msg
+        mark_pending_name(pid)
+        return _CONFIRM[choice]
 
     if _is_simple_greeting(body):
         return LANGUAGE_PROMPT
