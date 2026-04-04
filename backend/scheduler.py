@@ -143,7 +143,7 @@ async def check_price_alerts():
         db.close()
 
 def schedule_followup(phone: str, farmer_name: str, disease_name: str, bbox_pct: float):
-    followup_date = datetime.now() + timedelta(days=3)
+    followup_date = datetime.now() + timedelta(days=2)
     job_id = f"followup_{phone}_{int(datetime.now().timestamp())}"
     scheduler.add_job(
         _send_followup,
@@ -158,7 +158,7 @@ def schedule_followup(phone: str, farmer_name: str, disease_name: str, bbox_pct:
 
 async def _send_followup(phone: str, farmer_name: str, disease_name: str, bbox_pct: float):
     msg = (
-        f"{farmer_name} bhai, 3 din pehle aapki fasal mein "
+        f"{farmer_name} bhai, 2 din pehle aapki fasal mein "
         f"{disease_name} thi ({bbox_pct}% affected).\n"
         f"Kya dawai laga di? Aur ab kaisa lag raha hai?\n"
         f"Ek nayi photo bhejein — main dekh leta hoon. 📸"
@@ -184,11 +184,24 @@ def _get_all_farmers() -> list:
     ]
 
 
+async def run_disease_followup_job():
+    from services.disease_followup import send_due_disease_followups
+
+    await send_due_disease_followups()
+
+
 def start_scheduler():
     """Register all jobs then start. Call this from main.py startup."""
     if scheduler.running:
         return
 
+    scheduler.add_job(
+        run_disease_followup_job,
+        "interval",
+        hours=6,
+        id="disease_followup_job",
+        replace_existing=True,
+    )
     scheduler.add_job(
         morning_briefing,
         trigger="cron",
@@ -199,7 +212,7 @@ def start_scheduler():
     scheduler.add_job(
         daily_karnataka_scrape,
         trigger="cron",
-        hour=10, minute=20,
+        hour=9, minute=29,
         id="daily_karnataka_scrape",
         replace_existing=True,
     )

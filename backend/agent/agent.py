@@ -15,6 +15,8 @@ load_dotenv(os.path.join(os.path.dirname(__file__), ".env"))
 # Fallback to backend/.env when running from project root.
 load_dotenv(os.path.join(os.path.dirname(os.path.dirname(__file__)), ".env"))
 from farmer_store import get_farmer_location, get_farmer_language, normalize_phone
+from services.profile_onboarding import farmer_needs_name
+from services.market_service import resolve_state_hint
 client = AsyncGroq(api_key=os.getenv("GROQ_API_KEY"))
 
 memory_store = {}
@@ -44,6 +46,7 @@ When farmer sends crop photo with diagnosis:
 2. Give specific treatment with medicine names and dosage
 3. Warn how fast it spreads if untreated
 4. Give urgency level
+(On WhatsApp, farmers first send a photo, then the crop name; diagnosis uses both.)
 
 When farmer asks about prices:
 1. Give current rates
@@ -96,6 +99,11 @@ async def process_message(
             system_prompt += (
                 f"\n\nFarmer registered language preference: {lang_names.get(pref, pref)}. "
                 "Reply in this language."
+            )
+        if farmer_needs_name(normalize_phone(farmer_id)):
+            system_prompt += (
+                "\n\nThe farmer has not shared their real name yet (still default). "
+                "Politely ask for their name once when it fits naturally."
             )
         messages = (
             [{"role": "system", "content": system_prompt}]
@@ -196,7 +204,7 @@ async def use_tools(message: str, disease_result: dict = None, farmer_id: str = 
         crop = extract_crop(message)
         results.append(get_mandi_price.run(crop))
 
-    # Nearby mandi block — replace entirely
+    # Nearby / best mandi to sell (list with prices when user asks “best mandi” / sell)
     if any(w in msg_lower for w in ["nearby", "nearest", "closest", "paas", "kahan", "mandi", "sell", "market"]):
         explicit_crop = None
         for c in ["tomato","potato","onion","wheat","rice","cotton","corn","grape","pepper","mango","banana"]:
@@ -204,14 +212,39 @@ async def use_tools(message: str, disease_result: dict = None, farmer_id: str = 
                 explicit_crop = c
                 break
 
+        best_mandi_list = (
+            ("best" in msg_lower and "mandi" in msg_lower)
+            or ("mandi" in msg_lower and "sell" in msg_lower)
+            or ("bechne" in msg_lower and "mandi" in msg_lower)
+            or ("bechna" in msg_lower and "mandi" in msg_lower)
+            or "mandi list" in msg_lower
+            or (
+                "mandi" in msg_lower
+                and ("sabse" in msg_lower or "accha" in msg_lower or "achha" in msg_lower)
+            )
+        )
+        if best_mandi_list and not explicit_crop:
+            explicit_crop = _extract_crop_explicit(msg_lower)
+        if best_mandi_list and not explicit_crop:
+            return (
+                "__DIRECT_REPLY__Kaunsi fasal bechni hai? Message mein likhein "
+                "(jaise: tomato, potato, onion).\n\n"
+                "Koi aur madad chahiye? 🌾"
+            )
+
         saved = get_farmer_location(farmer_id)
         if saved:
             from services.whatsapp_service import handle_location_for_mandi
+
+            state_hint = resolve_state_hint(message)
+            list_top_n = 12 if best_mandi_list else 3
             mandi_reply = await handle_location_for_mandi(
                 phone=farmer_id,
                 lat=saved["lat"],
                 lng=saved["lng"],
                 commodity=explicit_crop,
+                state_filter=state_hint,
+                list_top_n=list_top_n,
             )
             return f"__DIRECT_REPLY__{mandi_reply}"  # ← inside if saved
 

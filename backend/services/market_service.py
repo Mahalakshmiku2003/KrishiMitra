@@ -2,6 +2,7 @@
 
 import os
 import json
+import re
 from math import radians, sin, cos, sqrt, atan2
 from sqlalchemy.orm import Session
 from sqlalchemy import func, desc
@@ -41,6 +42,25 @@ STATE_COORDS = {
     "West Bengal":       {"lat": 22.9868, "lng": 87.8550},
     "Jammu and Kashmir": {"lat": 33.7782, "lng": 76.5762},
 }
+
+
+def resolve_state_hint(message: str) -> str | None:
+    """If the user names an Indian state in the message, return canonical state name."""
+    if not message:
+        return None
+    ml = message.lower()
+    for state in sorted(STATE_COORDS.keys(), key=len, reverse=True):
+        if state.lower() in ml:
+            return state
+    if re.search(r"\buttar\s+pradesh\b", ml):
+        return "Uttar Pradesh"
+    if re.search(r"\bmadhya\s+pradesh\b", ml):
+        return "Madhya Pradesh"
+    if re.search(r"\bwest\s+bengal\b", ml):
+        return "West Bengal"
+    if re.search(r"\btamil\s+nadu\b", ml):
+        return "Tamil Nadu"
+    return None
 
 
 def haversine_distance(lat1, lng1, lat2, lng2) -> float:
@@ -184,21 +204,39 @@ def find_nearest_from_json(farmer_lat: float, farmer_lng: float, top_n: int = 5)
 
 
 def find_best_mandi_for_commodity(
-    farmer_lat: float, farmer_lng: float,
-    commodity: str, radius_km: float, top_n: int, db
+    farmer_lat: float,
+    farmer_lng: float,
+    commodity: str,
+    radius_km: float,
+    top_n: int,
+    db,
+    state_filter: str | None = None,
 ) -> list:
-    """DB prices + mandi_coordinates.json coords — no state centroid fallback."""
+    """DB prices + mandi coords; uses state centroid when exact mandi coords are missing."""
     all_prices = get_all_latest_prices(commodity, db)
+    if state_filter:
+        sf = state_filter.strip().lower()
+        all_prices = [
+            r for r in all_prices if r["state"].strip().lower() == sf
+        ]
+
     results = []
 
     for record in all_prices:
+        state = record["state"].strip()
         coords = get_market_coordinates(
             market=record["market"].strip(),
             district=record["district"].strip(),
-            state=record["state"].strip(),
+            state=state,
         )
         if not coords:
-            continue  # skip if no exact coords — no centroid fallback
+            for state_name, sc in STATE_COORDS.items():
+                if state.lower() == state_name.lower():
+                    coords = sc
+                    break
+
+        if not coords:
+            continue
 
         dist = haversine_distance(farmer_lat, farmer_lng, coords["lat"], coords["lng"])
         if dist > radius_km:

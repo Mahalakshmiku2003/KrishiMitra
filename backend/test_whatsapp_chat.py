@@ -3,7 +3,7 @@ from xml.etree import ElementTree as ET
 
 
 
-PHONE = "whatsapp:+9199999998947"
+PHONE = "whatsapp:+916366457763"
 import services.whatsapp_service as ws  # 👈 ADD THIS
 # 👇 MOCK HERE
 async def mock_send_proactive_message(phone, message):
