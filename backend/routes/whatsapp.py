@@ -6,8 +6,8 @@ from services.whatsapp_service import handle_incoming_message
 router = APIRouter()
 
 
-# routes/whatsapp.py — add Latitude and Longitude to Form params
 @router.post("/webhook/whatsapp")
+@router.post("/whatsapp")
 async def whatsapp_webhook(
     From:              str = Form(...),
     Body:              str = Form(""),
@@ -26,3 +26,8 @@ async def whatsapp_webhook(
     }
     twiml_xml = await handle_incoming_message(form_data)
     return Response(content=twiml_xml, media_type="text/xml")
+
+
+@router.get("/whatsapp/test")
+def test_webhook():
+    return {"status": "WhatsApp webhook running ✅"}

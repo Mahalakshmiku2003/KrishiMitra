@@ -1,8 +1,3 @@
-"""
-farmer_store.py
-Fixed: SQL uses %s style params throughout, no mixing of :name and %(name)s
-"""
-
 import json
 from datetime import date, datetime, timezone
 from sqlalchemy import text
@@ -322,8 +317,6 @@ def get_last_detection(phone: str) -> dict:
     }
 
 
-# Add these two functions to farmer_store.py
-
 def get_farmer_location(phone: str) -> dict | None:
     """Returns saved lat/lng or None if not set yet."""
     phone = normalize_phone(phone)
@@ -390,3 +383,17 @@ def deactivate_alert(alert_id: int):
             {"id": alert_id}
         )
         db.commit()
+
+
+def add_farmer_crop(phone: str, crop: str):
+    """Safely append crop to farmer's crop list if not already present."""
+    if not crop:
+        return
+    phone = normalize_phone(phone)
+    crop = crop.strip().lower()
+    farmer = get_farmer(phone)
+    crops = farmer.get("crops") or []
+    if isinstance(crops, list):
+        if crop not in [c.lower() for c in crops]:
+            crops.append(crop)
+            update_farmer_profile(phone, crops=crops)

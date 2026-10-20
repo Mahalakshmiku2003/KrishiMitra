@@ -11,7 +11,7 @@ from twilio.rest import Client
 from twilio.twiml.messaging_response import MessagingResponse
 from dotenv import load_dotenv
 
-from agent.agent import process_message
+from agent.agent import process_message, client as groq_client
 from agent.diagnose import diagnose_image
 from agent.guardrails import check_message, check_image
 from services.location_state import _pending_location
@@ -22,7 +22,12 @@ from farmer_store import (
     save_farmer_location,
     record_detection_if_outbreak,
     save_farmer_diagnosis,
+    update_farmer_profile,
+    add_farmer_crop,
+    set_farmer_language,
+    get_farmer,
 )
+
 from services.language_onboarding import maybe_handle_language_onboarding
 from services.name_onboarding import maybe_handle_name_onboarding
 from services.market_service import find_nearest_from_json, find_best_mandi_for_commodity
@@ -42,6 +47,39 @@ if not (_MODEL_DIR / "classifier.onnx").exists():
     _MODEL_DIR = AGENT_DIR / "models"
 CLASSIFIER_PATH = str(_MODEL_DIR / "classifier.onnx")
 DETECTOR_PATH   = str(_MODEL_DIR / "detector.onnx")
+
+
+async def extract_farmer_data(message: str) -> dict:
+    """Extract structured farmer info using Groq (ported from agent/whatsapp.py)."""
+    if not message or len(message.strip()) < 3:
+        return {}
+    try:
+        response = await groq_client.chat.completions.create(
+            model="llama-3.3-70b-versatile",
+            messages=[
+                {
+                    "role": "system",
+                    "content": """Extract farmer info.
+Return ONLY JSON:
+{
+  "location": "city or district or null",
+  "crop": "crop name or null",
+  "disease": "disease or null",
+  "language": "Hindi/English/Kannada or null"
+}""",
+                },
+                {"role": "user", "content": message},
+            ],
+            temperature=0.1,
+        )
+
+        import json, re
+        raw = response.choices[0].message.content
+        raw = re.sub(r"```json|```", "", raw).strip()
+        return json.loads(raw)
+    except Exception as e:
+        print(f"⚠️ Extraction failed: {e}")
+        return {}
 
 
 async def handle_incoming_message(form_data: dict) -> str:
@@ -130,6 +168,22 @@ async def handle_incoming_message(form_data: dict) -> str:
         save_farmer_diagnosis(phone, disease_result, body)
         record_detection_if_outbreak(phone, disease_result)
 
+    # ── 4b. Auto-store extracted farmer facts (location/crop/disease/language) ──
+    try:
+        data = await extract_farmer_data(body)
+        if data:
+            loc = data.get("location")
+            crop = data.get("crop")
+            lang = data.get("language")
+            if loc:
+                update_farmer_profile(phone, location=loc)
+            if crop:
+                add_farmer_crop(phone, crop)
+            if lang and not get_farmer(phone).get("language"):
+                set_farmer_language(phone, lang.lower())
+    except Exception as e:
+        print(f"[WhatsApp] Farmer data extraction/store error: {e}")
+
     reply = await process_message(
         farmer_id=phone,
         message=body or "Hello",
@@ -138,6 +192,7 @@ async def handle_incoming_message(form_data: dict) -> str:
 
     if image_path and os.path.exists(image_path):
         os.remove(image_path)
+
 
     twiml = MessagingResponse()
     twiml.message(reply)

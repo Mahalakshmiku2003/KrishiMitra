@@ -15,7 +15,7 @@ from services.prediction_service import predict_prices
 from services.geocode_service import geocode_location
 from services.price_fetcher import run_daily_fetch
 
-router = APIRouter(prefix="/market", tags=["market"])
+router = APIRouter()
 
 
 @router.get("/prices")

@@ -6,7 +6,7 @@ groq_client = AsyncGroq()  # uses GROQ_API_KEY from env
 
 async def get_preventive_steps_ai(disease, crop):
     response = await groq_client.chat.completions.create(
-        model="llama3-8b-8192",
+        model="llama-3.3-70b-versatile",
         messages=[{
             "role": "user",
             "content": f"Give exactly 4 short preventive steps for {disease} in {crop} crops. Return only a numbered list, no extra text."
@@ -65,8 +65,8 @@ async def handle_new_detection(db, detection):
     nearby_farmers = get_nearby_farmers(db, detection["lat"], detection["lng"], radius_km=50)
     nearby_farmers = [f for f in nearby_farmers if f["phone"] != detection["phone"]]
 
-    target_farmers = [f for f in nearby_farmers if detection["crop_type"] in (f["crops"] or [])]
-    other_farmers = [f for f in nearby_farmers if detection["crop_type"] not in (f["crops"] or [])]
+    target_farmers = [f for f in nearby_farmers if detection["crop_type"] in (f.get("crops") or [])]
+    other_farmers = [f for f in nearby_farmers if detection["crop_type"] not in (f.get("crops") or [])]
 
     for farmer in target_farmers:
         msg = await build_message(farmer, detection, is_same_crop=True)

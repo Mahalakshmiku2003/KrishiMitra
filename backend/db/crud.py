@@ -3,9 +3,6 @@ from db.models import Farmer, FarmerCrop, FarmerDisease
 
 
 # ─── Create or Update Farmer ─────────────────────────────
-from sqlalchemy.future import select
-from db.models import Farmer
-
 
 async def upsert_farmer(db, phone, location=None, language=None):
     result = await db.execute(select(Farmer).where(Farmer.phone_number == phone))
@@ -20,7 +17,6 @@ async def upsert_farmer(db, phone, location=None, language=None):
         )
         db.add(farmer)
     else:
-        # ✅ Update ONLY if new value exists
         if location:
             farmer.location = location
         if language:
@@ -31,8 +27,6 @@ async def upsert_farmer(db, phone, location=None, language=None):
 
 
 # ─── Add Crop ────────────────────────────────────────────
-from db.models import FarmerCrop
-
 
 async def add_crop(db, phone, crop):
     crop = normalize(crop)
@@ -40,7 +34,6 @@ async def add_crop(db, phone, crop):
     if not crop:
         return
 
-    # Check if already exists
     result = await db.execute(
         select(FarmerCrop).where(
             FarmerCrop.farmer_id == phone, FarmerCrop.crop_name == crop
@@ -64,8 +57,6 @@ def normalize(text: str):
 
 
 # ─── Add Disease ─────────────────────────────────────────
-from db.models import FarmerDisease
-
 
 async def add_disease(db, phone, disease):
     disease = normalize(disease)
@@ -73,14 +64,11 @@ async def add_disease(db, phone, disease):
     if not disease:
         return
 
-    # 🔥 Delete old diseases
     await db.execute(
         FarmerDisease.__table__.delete().where(FarmerDisease.farmer_id == phone)
     )
 
-    # Insert latest
     db.add(FarmerDisease(farmer_id=phone, disease_name=disease))
-
     await db.commit()
 
 
