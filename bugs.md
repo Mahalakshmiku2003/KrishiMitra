@@ -37,7 +37,12 @@ This document outlines all identified architectural flaws, schema mismatches, ru
 
 ---
 
-## 3. Database Fragmentation & Schema Inconsistencies
+## 3. Application Startup & Database Connection
+
+### 3.0 Server Crashes at Startup Due to Module-Level `create_all`
+- **Location**: `backend/main.py` (line 25)
+- **Status**: [FIXED]
+- **Details**: `Base.metadata.create_all(bind=engine)` was called at **module level**, meaning it executed during import before the FastAPI app even started. If the Supabase database was unreachable or credentials were invalid, the entire server crashed with `sqlalchemy.exc.OperationalError`. Moved `create_all` inside the `lifespan` async context manager and wrapped it in `try/except`, so the server starts gracefully even when the DB is temporarily unavailable.
 
 ### 3.1 Multiple Incompatible Database Connections & Engines
 - **Location**:

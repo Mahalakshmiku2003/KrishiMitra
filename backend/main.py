@@ -22,12 +22,17 @@ from outbreak.routes import router as outbreak_router
 from outbreak.scheduler import check_new_detections
 import services.whatsapp_service as ws
 
-Base.metadata.create_all(bind=engine)
-
 _executor = ThreadPoolExecutor(max_workers=1)
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
+    # Create tables – wrapped in try/except so the app still starts if DB is down
+    try:
+        Base.metadata.create_all(bind=engine)
+        print("✅ Database tables verified")
+    except Exception as e:
+        print(f"⚠️  Database connection failed (tables not created): {e}")
+
     loop = asyncio.get_event_loop()
 
     scheduler.add_job(
